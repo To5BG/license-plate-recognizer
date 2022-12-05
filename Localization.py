@@ -18,5 +18,6 @@ Hints:
 """
 def plate_detection(image):
     #Replace the below lines with your code.
-    plate_imgs = image
-    return plate_imgs
+	plate_imgs = image
+	iou = np.array([[1, 1], [1, 100], [100, 100], [100, 1]], np.int32)
+	return plate_imgs, iou
