@@ -1,17 +1,13 @@
+import argparse
 from Localization import plate_detection
 import cv2 
 import numpy as np
-
-
-
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file_path', type=str, default='dummytestvideo.avi')
     args = parser.parse_args()
     return args
-
-
 
 # Create a VideoCapture object and read from input file
 # If the input is the camera, pass 0 instead of the video file name

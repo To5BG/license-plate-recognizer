@@ -17,5 +17,35 @@ Inputs:(three)
 	3. save_path: final .csv file path
 Output: None
 """
-def CaptureFrame_Process(file_path, sample_frequency, save_path):
-    pass
+def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles):
+	vid = cv2.VideoCapture(file_path)
+	# Check if camera opened successfully
+	if (vid.isOpened()== False): 
+		print("Error opening video stream or file")
+	
+	# Create image folder is saveFiles is True
+	cwd = os.path.abspath(os.getcwd())
+	if saveFiles and not os.path.exists(os.path.join(cwd, "images")):
+		os.makedirs(os.path.join(cwd, "images"))
+	# Keep track of frame count
+	frame_count = 0
+	# Calculate sampling rate based on frame count
+	fps = vid.get(cv2.CAP_PROP_FPS)
+	rate = fps // sample_frequency
+	# Read until video is completed
+	while(vid.isOpened()):
+		# Capture frame-by-frame based on sampling frequency
+		succ, frame = vid.read()
+		if not succ:
+			break
+		if frame_count % rate == 0:
+			if saveFiles:
+				cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
+			plates = Localization.plate_detection(frame)
+			plate_numbers = Recognize.segment_and_recognize(plates)
+			print(plate_numbers)
+		frame_count += 1
+	# When everything done, release the video capture object
+	vid.release()
+	# Closes all the frames
+	cv2.destroyAllWindows()

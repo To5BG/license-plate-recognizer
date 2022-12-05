@@ -18,4 +18,5 @@ Hints:
 	You may need to define other functions.
 """
 def segment_and_recognize(plate_imgs):
+	recognized_plates = np.array(["dwadaw", "dwadadaw"])
 	return recognized_plates
