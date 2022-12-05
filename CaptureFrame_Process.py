@@ -52,7 +52,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles):
 		frame_count += 1
 	# Save csv
 	pd.DataFrame(list(data.values()), columns=['License plate', 'Frame no.', 'Timestamp(seconds)']).to_csv(
-		os.path.join(save_path, "output.csv"), index=False)
+		os.path.join(save_path, "Output.csv"), index=False)
 	# When everything done, release the video capture object
 	vid.release()
 	# Closes all the frames
