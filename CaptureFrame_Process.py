@@ -41,7 +41,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles):
 		if frame_count % rate == 0:
 			if saveFiles:
 				cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
-			plates = Localization.plate_detection(frame)
+			plates, _ = Localization.plate_detection(frame)
 			plate_numbers = Recognize.segment_and_recognize(plates)
 			for pnum in plate_numbers:
 				#### ASSUMES LICENSE PLATES DO NOT REPEAT

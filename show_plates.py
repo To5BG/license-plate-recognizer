@@ -19,10 +19,11 @@ while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
   if ret == True:
-    #dummy arguments for sample frequency and save_path should be changed
-    detections = plate_detection(frame)
+    detections, border = plate_detection(frame)
+    # Add predicted box
+    frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
     # Display the resulting frame
-    cv2.imshow('Frame',detections)
+    cv2.imshow('Frame', detections)
     # Press P on keyboard to pause
     if cv2.waitKey(24) == ord('p'):
       while (True):
