@@ -18,6 +18,7 @@ if (cap.isOpened()== False):
   print("Error opening video stream or file")
 
 playbackSpeed = 10
+# Read csv ground truth file
 groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
 csvLine = 0
 line = ''
@@ -36,18 +37,21 @@ while(cap.isOpened()):
       csvLine += 1
       nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
+  # Add predicted box
   for border in borders:
-    # Add predicted box
+    print(border)
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
+  # Add ground truth box
   for points in pointarr:
-    # Add ground truth box
     frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
 
-  # Display the resulting frame
-  cv2.namedWindow('Full frame', cv2.WINDOW_NORMAL)
-  cv2.imshow('Full frame', frame)
-
-  cv2.imshow('Cropped plates', detections)
+  # Display the original frame with bounding boxes
+  cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
+  cv2.imshow('Original frame', frame)
+  
+  # Display cropped plates
+  for j, plate in enumerate(detections):
+    cv2.imshow('Cropped plate #%d' % j, detections[j])
 
   a = cv2.waitKey(playbackSpeed)
   # Press P on keyboard to pause
