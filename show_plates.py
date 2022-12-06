@@ -24,6 +24,7 @@ line = ''
 nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
 frame_count = 0
 points = []
+f = 0
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
@@ -37,8 +38,16 @@ while(cap.isOpened()):
   for border in borders:
     # Add predicted box
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
+    if f % 36 == 0:
+      print(f)
+      print(border)
+      print()
+      print(points)
+
+    f = f+1
     # Add ground truth box
     frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
+
   # Display the resulting frame
   cv2.namedWindow('Full frame', cv2.WINDOW_NORMAL)
   cv2.imshow('Full frame', frame)
