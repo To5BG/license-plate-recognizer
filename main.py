@@ -33,6 +33,7 @@ if __name__ == '__main__':
 	args = get_args()
 	if args.output_path is None:
 		output_path = os.getcwd()
+
 	else:
 		output_path = args.output_path
 	file_path = args.file_path
