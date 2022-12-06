@@ -4,6 +4,7 @@ import pandas as pd
 import Localization
 import Recognize
 
+
 """
 In this file, you will define your own CaptureFrame_Process funtion. In this function,
 you need three arguments: file_path(str type, the video file), sample_frequency(second), save_path(final results saving path).
@@ -18,8 +19,10 @@ Inputs:(three)
 Output: None
 """
 def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, hyper_args):
+
 	vid = cv2.VideoCapture(file_path)
 	# Check if camera opened successfully
+
 	if (vid.isOpened()== False): 
 		print("Error opening video stream or file")
 	# Create image folder is saveFiles is True

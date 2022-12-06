@@ -18,6 +18,7 @@ Hints:
 """
 def plate_detection(image, hyper_args):
     # Contrast stretch the image
+
 	if hyper_args.contrast_stretch != 0:
 		image = contrastImprovementContrastStretching(image, hyper_args.contrast_stretch, 0, 255)
 	# Blur to remove noise
