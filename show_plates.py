@@ -31,12 +31,15 @@ while(cap.isOpened()):
   if ret != True: break;
   detections, borders = plate_detection(frame, get_hyper_args())
   if nextFrame == frame_count:
-    csvLine += 1
-    points = np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])])
-    nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+    pointarr = list()
+    while nextFrame == frame_count:
+      csvLine += 1
+      nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+      pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   for border in borders:
     # Add predicted box
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
+  for points in pointarr:
     # Add ground truth box
     frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
 
