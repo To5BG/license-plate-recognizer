@@ -17,14 +17,19 @@ def get_args():
 
 def get_hyper_args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--contrast_stretch', type=float, default=0.75)
-	parser.add_argument('--gaussian_blur_k', type=tuple, default=(5,5))
-	parser.add_argument('--gaussian_blur_sigma', type=float, default=0.75)
-	parser.add_argument('--mask_low', type=object, default=[15,135,135])
+	parser.add_argument('--contrast_stretch', type=float, default=0.7)
+	parser.add_argument('--gaussian_blur_k', type=int, default=11)
+	parser.add_argument('--gaussian_blur_sigma', type=float, default=1.5)
+	parser.add_argument('--sharpen_k', type=int, default=11)
+	parser.add_argument('--sharpen_sigma', type=float, default=1.5)
+	parser.add_argument('--mask_low', type=object, default=[10,100,100])
 	parser.add_argument('--mask_high', type=object, default=[40,255,255])
-	parser.add_argument('--threshold_value', type=int, default=50)
-	parser.add_argument('--opening_kernel', type=object, default=np.ones((3, 3)))
-	parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((2, 5)))
+	parser.add_argument('--threshold_value', type=int, default=245)
+	parser.add_argument('--opening_kernel', type=object, default=np.ones((1, 2)))
+	parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((1, 3)))
+	parser.add_argument('--canny_lower', type=int, default=75)
+	parser.add_argument('--canny_upper', type=int, default=200)
+	parser.add_argument('--image_width', type=int, default=150)
 	args = parser.parse_args()
 	return args
 
