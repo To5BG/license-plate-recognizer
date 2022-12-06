@@ -20,9 +20,11 @@ if __name__ == '__main__':
 	args = get_args()
 	if args.output_path is None:
 		output_path = os.getcwd()
+
 	else:
 		output_path = args.output_path
 	file_path = args.file_path
 	sample_frequency = args.sample_frequency
 	save_files = args.save_files
 	CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files)
+
