@@ -39,15 +39,17 @@ def plate_detection(image, hyper_args):
 	# Using gaussian blur, thresholding, and morphological filtering
 	plate_imgs = cv2.GaussianBlur(plate_imgs, hyper_args.gaussian_blur_k, hyper_args.gaussian_blur_sigma)
 	ret, threshold = cv2.threshold(cv2.cvtColor(plate_imgs, cv2.COLOR_BGR2GRAY), hyper_args.threshold_value, 255, cv2.THRESH_BINARY)
-	#threshold = cv2.morphologyEx(threshold, cv2.MORPH_DILATE, np.ones((4, 4)))
+	#threshold = cv2.morphologyEx(threshold, cv2.MORPH_DILATE, np.ones((2, 5)), iterations=2)
 	#threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, hyper_args.opening_kernel)
 	#threshold = cv2.morphologyEx(threshold, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel)
 
 	boxes = list()
-	idxx = np.where(threshold != 0)[0]
-	idxy = np.where(threshold != 0)[1]
-	#threshold[np.sort( - np.median(threshold))]
-	boxes = np.array(boxes, np.int32)
+	idxy = np.where(threshold != 0)[0]; idxx = np.where(threshold != 0)[1]
+	minx = np.argmin(idxx); miny = np.argmin(idxy); maxx = np.argmax(idxx); maxy = np.argmax(idxy)
+	points = list() + [[idxy[minx], idxx[minx]], [idxy[miny], idxx[miny]], [idxy[maxx], idxx[maxx]], [idxy[maxy], idxx[maxy]]]
+	points.sort(key=lambda p: (p[0] + p[1], p[0]))
+	boxes.append(np.array(points))
+	boxes = np.array(boxes)
 	return threshold, boxes
 	return #image[y : y + h, x : x + w], iou
 

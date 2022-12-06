@@ -20,10 +20,10 @@ def get_hyper_args():
 	parser.add_argument('--contrast_stretch', type=float, default=0.75)
 	parser.add_argument('--gaussian_blur_k', type=tuple, default=(5,5))
 	parser.add_argument('--gaussian_blur_sigma', type=float, default=0.75)
-	parser.add_argument('--mask_low', type=object, default=[15,150,150])
+	parser.add_argument('--mask_low', type=object, default=[15,135,135])
 	parser.add_argument('--mask_high', type=object, default=[40,255,255])
 	parser.add_argument('--threshold_value', type=int, default=50)
-	parser.add_argument('--opening_kernel', type=object, default=np.ones((4, 4)))
+	parser.add_argument('--opening_kernel', type=object, default=np.ones((3, 3)))
 	parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((2, 5)))
 	args = parser.parse_args()
 	return args
