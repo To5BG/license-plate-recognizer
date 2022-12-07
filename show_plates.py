@@ -39,7 +39,6 @@ while(cap.isOpened()):
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   # Add predicted box
   for border in borders:
-    print(border)
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
   # Add ground truth box
   for points in pointarr:
