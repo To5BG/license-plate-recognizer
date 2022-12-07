@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 
+last_image = None
+last_boxes = list()
+
 """
 In this file, you need to define plate_detection function.
 To do:
@@ -43,14 +46,19 @@ def plate_detection(image, hyper_args):
 
 	## Noise reduction after finding segmentation
 	# Using morphological filtering
-	edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel)
-	edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel.T)
+	edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel, iterations=1)
+	edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel.T, iterations=1)
 	edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 
-	edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)))
-	edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)))
+	edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=4)
+	edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=4)
 	edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
+
+	#edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel)
+	#edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel.T)
+	#edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 	cv2.imshow("Edges detected", edged)
+	
 	# Find bounding boxes
 	boxes = list()
 	centers = list()
@@ -75,6 +83,19 @@ def plate_detection(image, hyper_args):
 	#points = list() + [[idxy[minx], idxx[minx]], [idxy[miny], idxx[miny]], [idxy[maxx], idxx[maxx]], [idxy[maxy], idxx[maxy]]]
 	#points.sort(key=lambda p: (p[0] + p[1], p[0]))
 	#boxes.append(np.array(points))
+	
+	# Default position if not able to find a bounding box on current frame
+	global last_boxes
+	global last_image
+	if last_image is None: last_image = image
+	if cv2.matchTemplate(image, last_image, 1) > 0.2:
+		last_image = image
+		last_boxes = list()
+	if len(boxes) == 0:
+		boxes = last_boxes
+	else:
+		last_boxes = boxes
+		last_image = image
 	boxes = np.array(boxes)
 	return plate_imgs, boxes
 
