@@ -21,8 +21,7 @@ playbackSpeed = 10
 # Read csv ground truth file
 groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
 csvLine = 0
-line = ''
-nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
 frame_count = 0
 points = []
 # Read until video is completed
@@ -35,7 +34,7 @@ while(cap.isOpened()):
     pointarr = list()
     while nextFrame == frame_count:
       csvLine += 1
-      nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+      nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   # Add predicted box
   for border in borders:

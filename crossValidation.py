@@ -11,19 +11,19 @@ def cross_validation(file_path, hyper_args, sizes=[0.1]):
     cap = cv2.VideoCapture(file_path)
     if cap.isOpened() == False: print("Error opening video stream or file")
     csvLine = 0
-    nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+    nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
     frame_count = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        if nextFrame == frame_count:
+        while nextFrame == frame_count:
             csvLine += 1
             labels.append(np.array([[int(a), int(b)] for a, b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2],
                                                                      groundTruthBoxes[csvLine].split(',')[1:8:2])]))
             images.append(frame)
-            nextFrame = int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+            nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
         frame_count += 1
 
     cap.release()
