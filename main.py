@@ -14,6 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./')
     parser.add_argument('--sample_frequency', type=int, default=2)
     parser.add_argument('--save_files', type=bool, default=False)
+    parser.add_argument('--stage', type=str, default='test')
     args = parser.parse_args()
     return args
 
@@ -21,8 +22,11 @@ def get_args():
 def get_hyper_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--contrast_stretch', type=float, default=0.7)
-    parser.add_argument('--gaussian_blur_k', type=int, default=11)
-    parser.add_argument('--gaussian_blur_sigma', type=float, default=1.5)
+    parser.add_argument('--gaussian_blur_k', type=int, default=7)
+    parser.add_argument('--gaussian_blur_sigma', type=float, default=1)
+    parser.add_argument('--bifilter_k', type=int, default=11)
+    parser.add_argument('--bifilter_sigma1', type=float, default=7)
+    parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.5)
     parser.add_argument('--mask_low', type=object, default=[10, 115, 115])
