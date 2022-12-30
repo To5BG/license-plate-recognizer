@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import imutils
 
 last_image = None
 last_boxes = list()
@@ -27,11 +28,10 @@ def plate_detection(image, hyper_args):
 		img = contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
 
 	# Blur to remove noise
-	#img = cv2.bilateralFilter(img, 11, 17, 17)
 	img = cv2.GaussianBlur(img, (hyper_args.gaussian_blur_k, hyper_args.gaussian_blur_k), hyper_args.gaussian_blur_sigma)
+	img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
 	# Sharpen edges
 	img = cv2.filter2D(img, -1, sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
-
 	# Color segmentation
 	# Define color range
 	# Similar to lab_1_color_and_histograms color segmentation
@@ -70,12 +70,12 @@ def plate_detection(image, hyper_args):
 	for cnt in cnts:
 		approx = cv2.approxPolyDP(cnt, 0.015 * cv2.arcLength(cnt, True), True)
 		rect = cv2.minAreaRect(cnt)
-		if len(approx) == 4:
-		#if len(approx) == 4 and (len(centers) == 0
-		#	or next(filter(lambda centers: abs(centers[0] - rect[0][0]) < 100 and abs(centers[1] - rect[0][1]) < 100, centers), None) is not None):
+		if len(approx) == 4: #and (len(centers) == 0
+			#or next(filter(lambda center: abs(center[0] - rect[0][0]) > 30 and abs(center[1] - rect[0][1]) > 30, centers), None) is not None):
 			box = cv2.boxPoints(rect)
-			boxes.append(np.array([box[1], box[2], box[3], box[0]]).astype(np.int32))
+			boxes.append(np.array(box).astype(np.int32))
 			#img = cv2.warpAffine(img, cv2.getRotationMatrix2D(rect[0], rect[2], 1), tuple(map(int, rect[1])))
+			#img = cv2.getRectSubPix(img, (int(rect[1][0]), int(rect[1][1])), (int(rect[0][0]), int(rect[0][1])))
 			#plate_imgs.append(imutils.resize(img, width=hyper_args.image_width))
 
 	#idxy = np.where(threshold != 0)[0]; idxx = np.where(threshold != 0)[1]
@@ -87,12 +87,16 @@ def plate_detection(image, hyper_args):
 	# Default position if not able to find a bounding box on current frame
 	global last_boxes
 	global last_image
+	# Guard clause for first frame
 	if last_image is None: last_image = image
+	# If new frame (not similar to last one), set new last_image
 	if cv2.matchTemplate(image, last_image, 1) > 0.2:
 		last_image = image
 		last_boxes = list()
+	# If no plates are found, set to previous plates
 	if len(boxes) == 0:
 		boxes = last_boxes
+	# Else rewrite last boxes and image
 	else:
 		last_boxes = boxes
 		last_image = image
