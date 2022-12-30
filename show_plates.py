@@ -61,18 +61,25 @@ if (cap.isOpened()== False):
 playbackSpeed = 10
 # Read csv ground truth file
 groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
+# Variable to keep track of current csvLine
 csvLine = 0
+# Next recorded frame
 nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+# On manual select mode - add entry instead of overwriting (for more than 1 license plate on an image)
 addEntry = False
+# Frame count
 frame_count = 0
+# Points of predicted box
 points = []
+# Manual Box Points
 mbp = []
+# Boolean flag for manual framing
 usedCaretForNextFrame = False
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  if ret != True: break;
+  if ret != True: break
   detections, borders = plate_detection(frame, get_hyper_args())
   if nextFrame == frame_count:
     pointarr = list()
@@ -83,13 +90,14 @@ while(cap.isOpened()):
   # Add predicted box
   for border in borders:
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
-  # Add ground truth box
+  # Add ground truth box, new var for easier onclick event handling
   for points in pointarr:
-    frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
+    gframe = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
 
   # Display the original frame with bounding boxes
   cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
   cv2.setMouseCallback('Original frame', captureBox)
+  cv2.imshow('Original frame', gframe)
   
   # Display cropped plates
   for j, plate in enumerate(detections):
@@ -97,9 +105,21 @@ while(cap.isOpened()):
 
   a = cv2.waitKey(playbackSpeed)
   # Press P on keyboard to pause
-  if a == ord('p'):
+  if usedCaretForNextFrame or a == ord('p'):
+    usedCaretForNextFrame = False
     while (True):
-      if cv2.waitKey(playbackSpeed) == ord('p'):
+      a = cv2.waitKey(playbackSpeed)
+      if a == ord('n'):
+        usedCaretForNextFrame = True
+        gframe = frame
+        pointarr = list()
+        pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
+        break
+      if a == ord('m'):
+        addEntry = not addEntry
+        msg = "Entries of same frame are now added" if addEntry else "Entries of same frame are now overriden"
+        print(msg)
+      if a == ord('p'):
         break
   # Press Q on keyboard to exit
   if a == ord('q'):
