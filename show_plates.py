@@ -33,9 +33,8 @@ def captureBox(event, x, y, flags, param):
           idx -= 1
         while (int(df[idx].split(",")[8]) < frame_count):
           idx += 1
-        # Overwrite decision if csv has no entries (but header)
-        if (len(df) == 1):
-          idx = 1
+        # Overwrite decision if csv has no entries (but header), or if idx is at the last row
+        idx = min(len(df) - 1, max(1, idx))
         # If an entry already exists for the given frame count, update it
         if int(df[idx].split(",")[8]) == frame_count and not addEntry:
           df[idx] = ",".join(map(str, e)) + "\n"
@@ -92,12 +91,12 @@ while(cap.isOpened()):
     frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
   # Add ground truth box, new var for easier onclick event handling
   for points in pointarr:
-    gframe = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
+    frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
 
   # Display the original frame with bounding boxes
   cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
   cv2.setMouseCallback('Original frame', captureBox)
-  cv2.imshow('Original frame', gframe)
+  cv2.imshow('Original frame', frame)
   
   # Display cropped plates
   for j, plate in enumerate(detections):
@@ -111,9 +110,6 @@ while(cap.isOpened()):
       a = cv2.waitKey(playbackSpeed)
       if a == ord('n'):
         usedCaretForNextFrame = True
-        gframe = frame
-        pointarr = list()
-        pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
         break
       if a == ord('m'):
         addEntry = not addEntry
@@ -130,6 +126,3 @@ while(cap.isOpened()):
 cap.release()
 # Closes all the frames
 cv2.destroyAllWindows()
-
-
-
