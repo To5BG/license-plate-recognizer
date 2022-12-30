@@ -30,7 +30,7 @@ def cross_validation(file_path, hyper_args, sizes=[0.1]):
 
     cap.release()
     cv2.destroyAllWindows()
-    train_model(images, labels, hyper_args, sizes)
+    train_and_test_model(images, labels, hyper_args, sizes)
 
 def shoelaceArea(box):
     x, y = zip(*box)
@@ -107,7 +107,7 @@ def evaluate_bounding_boxes(x, y, hyper_args, size):
     return score * 100.0
 
 
-def train_model(data, labels, hyper_args, sizes):
+def train_and_test_model(data, labels, hyper_args, sizes):
     best = 0
     best_hyper_arg = []
     best_size = []

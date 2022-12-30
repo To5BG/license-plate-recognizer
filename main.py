@@ -49,5 +49,10 @@ if __name__ == '__main__':
     file_path = args.file_path
     sample_frequency = args.sample_frequency
     save_files = args.save_files
-    cross_validation(file_path, get_hyper_args(), [0.7,0.8])
-    CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_hyper_args())
+    stage = args.stage
+    if stage == "train_test":
+        cross_validation(file_path, get_hyper_args(), 0.8)
+    elif stage  == "train":
+        pass
+    elif stage == "test":
+        CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_hyper_args())
