@@ -34,28 +34,64 @@ def cross_validation(file_path, hyper_args, sizes=[0.1]):
 
 def shoelaceArea(box):
     x, y = zip(*box)
+    res = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    if res == 0:
+        box = [box[1], box[0], box[2], box[3]]
+        x, y = zip(*box)
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
+# Use Jordan curve's theorem for a ray-casting algorithm
+def isContained(p, b): 
+    testline = [p, (10000, p[1])]
+    c = 0
+    for i in range(0, 4):
+        checkline = [b[i], b[(i + 1) % 4]]
+        if lineIntersect(testline[0], testline[1], checkline[0], checkline[1]) is not None:
+            c += 1
+    # If intersects even number of lines, outside the polygon, otherwise in
+    return c % 2
+
+def lineIntersect(a, b, c, d): 
+    a1 = b[1] - a[1]
+    b1 = a[0] - b[0]
+    c1 = a1 * a[0] + b1 * a[1]
+
+    a2 = d[1] - c[1]
+    b2 = c[0] - d[0]
+    c2 = a2 * c[0] + b2 * c[1]
+
+    det = a1 * b2 - a2 * b1
+    if det == 0: return None
+    potx = (b2 * c1 - b1 * c2) / det
+    if potx > max(a[0], b[0]) or potx > max(c[0], d[0]) or potx < min(a[0], b[0]) or potx < min(c[0], d[0]): return None
+    poty = (a1 * c2 - a2 * c1) / det
+    if poty > max(a[1], b[1]) or poty > max(c[1], d[1]) or poty < min(a[1], b[1]) or poty < min(c[1], d[1]): return None 
+    return (0 if potx == -0 else potx, 0 if poty == -0 else poty)
+
 def intersect(box1, box2):
-    # Build overlapping quad endpoints and apply shoelaceArea formula
-    coords = list()
-    def isContained(p, b): mlp.Path(np.array(b)).contains_point(p)
-    def helper(a, b, c): return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
-    def lineIntersect(a, b, c, d): return helper(a, c, d) != helper(b, c, d) and helper(a, b, c) != helper(a, b, d)
+    # Build overlapping quad endpoints
+    coords = set()
     for p in box1: 
-        if isContained(p, box2): coords.append(p)
+        if isContained(p, box2): coords.add(p)
     for p in box2:
-        if isContained(p, box1): coords.append(p)
-    for i in range(4):
-        for j in range(i, 4):
+        if isContained(p, box1): coords.add(p)
+    for i in range(0, 4):
+        for j in range(0, 4):
             p1 = box1[i]
             p2 = box1[(i + 1) % 4]
             p3 = box2[j]
             p4 = box2[(j + 1) % 4]
-            if lineIntersect(p1, p2, p3, p4): 
-                denom = (p4[1] - p3[1]) * (p2[0] - p1[0]) - (p4[0] - p3[0]) * (p2[1] - p1[1])
-                u = (p4[0] - p3[0]) * (p1[1] - p3[1]) - (p4[1] - p3[1]) * (p1[0] - p3[0]) / denom
-                coords.append([p1[0] + u * (p2[0] - p1[0]), p1[1] + u * (p2[1] - p1[1])])
+            li = lineIntersect(p1, p2, p3, p4)
+            if li is not None: 
+                coords.add(li)
+    # If not enough intersection points, return a point (no intersection)
+    if len(coords) < 4: return [(0, 0), (0, 0), (0, 0), (0, 0)]
+    # Sort coordinates in counter-clockwise order for proper shoelace area
+    # Get some middle point (average of all, assumes polygon is convex)
+    # Find angle between that point and all edge points
+    avgx = np.average(list(map(lambda p: p[0], list(coords))))
+    avgy = np.average(list(map(lambda p: p[1], list(coords))))
+    return sorted(list(coords), key=lambda p: np.arctan2(p[1] - avgy, p[0] - avgx))
 
 
 def evaluate_single_box(model_box, test_box):
@@ -65,14 +101,13 @@ def evaluate_single_box(model_box, test_box):
     area_model_box = shoelaceArea(model_box)
     area_test_box = shoelaceArea(test_box)
 
-    # consider whether you need to invert the np.min and np.max for the fact that y is inverted
-    area_intersection = shoelaceArea(intersect(model_box, test_box))
-    #print("Intersection: " + str(area_intersection))
+    intersection = intersect(model_box, test_box)
+    area_intersection = shoelaceArea(intersection) if len(intersection) >= 4 else 0
     area_union = area_model_box + area_test_box - area_intersection
-
+    
     overlap = area_intersection / area_union
     success = 1 if overlap > 0.75 else 0
-    return success
+    return success, overlap
 
 
 def evaluate_bounding_boxes(x, y, hyper_args, size):
