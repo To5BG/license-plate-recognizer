@@ -4,46 +4,74 @@ import matplotlib.path as mlp
 import Localization
 import cv2
 
-# define a get_sizes
-def cross_validation(file_path, hyper_args, sizes=[0.1]):
+def cross_validation(file_path, hyper_args):
     images = []
     groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
-    labels = []
+    boundingBoxes = []
     cap = cv2.VideoCapture(file_path)
     if cap.isOpened() == False: print("Error opening video stream or file")
     csvLine = 0
     nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
     frame_count = 0
+    last_ground_truth = None
 
     while cap.isOpened():
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret: break
+        currFrameBoundingBoxes = []
         while nextFrame == frame_count:
             csvLine += 1
-            labels.append(np.array([[int(a), int(b)] for a, b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2],
-                                                                     groundTruthBoxes[csvLine].split(',')[1:8:2])]))
-            print(labels)
-            images.append(frame)
+            currFrameBoundingBoxes.append([(int(a), int(b)) for a, b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2],
+                                                                     groundTruthBoxes[csvLine].split(',')[1:8:2])])
             nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
+        if len(currFrameBoundingBoxes) == 0: 
+            currFrameBoundingBoxes = last_ground_truth
+        else:
+            currFrameBoundingBoxes = sorted(currFrameBoundingBoxes, key=lambda b: b[0][0])
+            last_ground_truth = currFrameBoundingBoxes
+        images.append(frame)
+        boundingBoxes.append(currFrameBoundingBoxes)
         frame_count += 1
-
+        
     cap.release()
     cv2.destroyAllWindows()
-    train_and_test_model(images, labels, hyper_args, sizes)
+    train_and_test_model(images, boundingBoxes, hyper_args)
 
+def train_and_test_model(data, labels, hyper_args):
+    best_train = 0
+    best_hyper_arg = []
+    hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
+    test_x = []
+    test_y = []
+
+    for hyper_arg in hyper_args:
+        x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=False)
+        res = evaluate_bounding_boxes(x_train, y_train, hyper_arg)
+        if res[0] > best_train[0]: #natural selection of results that improve
+            best_train = res
+            best_hyper_arg = hyper_arg
+            test_x = x_test
+            test_y = y_test
+    best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg)
+    print("Best match: ")
+    print("Train set: " + str(best_train))
+    print("Test set: " + str(best_test))
+    print("Best hyper-parameters: " + best_hyper_arg)
+    return best_hyper_arg
+
+# Using regular shoelace area formula for any polygon possible
+# NB! WE ASSUME POLYGONS ARE ALWAYS CONVEX, HENCE FOR PROPER CALCULATION
+# MAKE SURE THE COORDINATES FOLLOW A (COUNTER-)CLOCKWISE ORDER
 def shoelaceArea(box):
     x, y = zip(*box)
-    res = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
-    if res == 0:
-        box = [box[1], box[0], box[2], box[3]]
-        x, y = zip(*box)
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 # Use Jordan curve's theorem for a ray-casting algorithm
 def isContained(p, b): 
+    # Pick arbitrary ray for testing intersections
     testline = [p, (10000, p[1])]
     c = 0
+    # For each side of the box, check if the ray intersects the side
     for i in range(0, 4):
         checkline = [b[i], b[(i + 1) % 4]]
         if lineIntersect(testline[0], testline[1], checkline[0], checkline[1]) is not None:
@@ -52,29 +80,38 @@ def isContained(p, b):
     return c % 2
 
 def lineIntersect(a, b, c, d): 
+    # Build first line from a and b
     a1 = b[1] - a[1]
     b1 = a[0] - b[0]
     c1 = a1 * a[0] + b1 * a[1]
-
+    # Build second line from c and d
     a2 = d[1] - c[1]
     b2 = c[0] - d[0]
     c2 = a2 * c[0] + b2 * c[1]
 
     det = a1 * b2 - a2 * b1
+    # If det == 0, then lines are parallel
     if det == 0: return None
+    # Potential intersection, x coord
     potx = (b2 * c1 - b1 * c2) / det
+    # If not within both segments, return None
     if potx > max(a[0], b[0]) or potx > max(c[0], d[0]) or potx < min(a[0], b[0]) or potx < min(c[0], d[0]): return None
+    # Potential intersection, y coord
     poty = (a1 * c2 - a2 * c1) / det
+    # If not within both segments, return None
     if poty > max(a[1], b[1]) or poty > max(c[1], d[1]) or poty < min(a[1], b[1]) or poty < min(c[1], d[1]): return None 
+    # Turn -0 to 0, else unchanged
     return (0 if potx == -0 else potx, 0 if poty == -0 else poty)
 
 def intersect(box1, box2):
     # Build overlapping quad endpoints
     coords = set()
+    # Check, for every point, whether it lies inside the other polygon
     for p in box1: 
         if isContained(p, box2): coords.add(p)
     for p in box2:
         if isContained(p, box1): coords.add(p)
+    # Check intersection of every pair of polygon segments
     for i in range(0, 4):
         for j in range(0, 4):
             p1 = box1[i]
@@ -95,14 +132,11 @@ def intersect(box1, box2):
 
 
 def evaluate_single_box(model_box, test_box):
-    print(model_box)
-    print(test_box)
-    print('---------')
     area_model_box = shoelaceArea(model_box)
     area_test_box = shoelaceArea(test_box)
 
     intersection = intersect(model_box, test_box)
-    area_intersection = shoelaceArea(intersection) if len(intersection) >= 4 else 0
+    area_intersection = shoelaceArea(intersection)
     area_union = area_model_box + area_test_box - area_intersection
     
     overlap = area_intersection / area_union
@@ -110,70 +144,35 @@ def evaluate_single_box(model_box, test_box):
     return success, overlap
 
 
-def evaluate_bounding_boxes(x, y, hyper_args, size):
+def evaluate_bounding_boxes(x, y, hyper_args):
     boxes = []
-    y = np.array(y)
-    default = np.zeros(y[0].shape)
+    default = [(0, 0), (0, 0), (0, 0), (0, 0)]
 
-    # for img in x_train:
-    #     a = Localization.plate_detection(img, hyper_args)[1]
-    #     plates_train.append(a[0] if len(a) > 0 else default)
-    #     default = a[0] if len(a) > 0 else default
-    # for img in x_test:
-    #     a = Localization.plate_detection(img, hyper_args)[1]
-    #     plates_test.append(a[0] if len(a) > 0 else default)
-    #     default = a[0] if len(a) > 0 else default
+    hyper_args.memoize_bounding_boxes = False
+    for i in range(0, len(x)):
+        res = Localization.plate_detection(x[i], hyper_args)[1]
+        while len(res) > len(y[i]): y[i].append(default)
+        while len(res) != len(y[i]): res.append(default)
+        boxes.append(res)
 
-    # # converts to the same shape cuz for some god forsaken reason it is not
-    # plates_train = np.squeeze(np.array(plates_train))
-    # plates_test = np.squeeze(np.array(plates_test))
+    successScore = 0
+    overlapScore = 0
 
-    score_train = 0
-    score_test = 0
-    for i in range(len(plates_train)): score_train += evaluate_single_box(plates_train[i], y_train[i], i)
-    for i in range(len(plates_test)): score_test += evaluate_single_box(plates_test[i], y_test[i], i)
-    score_train /= (len(plates_train))
-    score_test /= (len(plates_test))
+    # Frameboxes refers to many bounding boxes on same frame (for Category 3, for ex)
+    for i in range(0, len(boxes)): 
+        # Sort by top-left vertex, x coordinate (when multiple plates on same frame)
+        frameboxes = sorted(boxes[i], key=lambda b: b[0][0])
+        for j in range(0, len(frameboxes)):
+            fb = list(map(tuple, frameboxes[j]))
+            scores = evaluate_single_box(fb, y[i][j])
+            successScore += scores[0]
+            overlapScore += scores[1]
+  
+    successScore /= (len(x))
+    overlapScore /= (len(x))
 
     print("Hyper parameters:" + str(hyper_args))
-    print("Size:" + str(size))
-    print("Score:" + str(score * 100.0) + "%")
+    print("Score (successful matches):" + str(successScore * 100.0) + "%")
+    print("Score (total overlap):" + str(overlapScore * 100.0) + "%")
 
-    return score * 100.0
-
-
-def train_and_test_model(data, labels, hyper_args, sizes):
-    best = 0
-    best_hyper_arg = []
-    best_size = []
-    hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
-    test_x = []
-    test_y = []
-
-
-    for hyper_arg in hyper_args:
-        for size in sizes:
-            x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=size, random_state=42,
-                                                                shuffle=False)
-            res = evaluate_bounding_boxes(x_train, y_train, hyper_arg, size)
-            if res > best: #natural selection of results that improve
-                best = res
-                best_hyper_arg.append(hyper_arg)
-                best_size.append(size)
-                test_x.append(x_test)
-                test_y.append(y_test)
-
-    best = 0
-    bHp = None
-    bS = None
-    print(best_hyper_arg)
-    for i in range(len(best_hyper_arg)):
-        res = evaluate_bounding_boxes(test_x.pop(), test_y.pop(), best_hyper_arg[i], best_size[i])
-        if res > best: #natural selection of results that improve
-            best = res
-            bHp = best_hyper_arg[i]
-            bS = best_size[i]
-
-    print("Best match: " + str(best) + "%\n hyper_arg = " + str(bHp) + "\n size = " + str(bS))
-
-    return best_hyper_arg, best_size
+    return (successScore * 100.0, overlapScore * 100.0)

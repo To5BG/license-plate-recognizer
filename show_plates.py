@@ -68,8 +68,6 @@ nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[
 addEntry = False
 # Frame count
 frame_count = 0
-# Points of predicted box
-points = []
 # Manual Box Points
 mbp = []
 # Boolean flag for manual framing
@@ -78,7 +76,7 @@ usedCaretForNextFrame = False
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  if ret != True: break
+  if not ret: break
   detections, borders = plate_detection(frame, get_hyper_args())
   if nextFrame == frame_count:
     pointarr = list()

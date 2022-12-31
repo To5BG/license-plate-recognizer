@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./')
     parser.add_argument('--sample_frequency', type=int, default=2)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='test')
+    parser.add_argument('--stage', type=str, default='train_test')
     args = parser.parse_args()
     return args
 
@@ -37,6 +37,7 @@ def get_hyper_args():
     parser.add_argument('--canny_lower', type=int, default=75)
     parser.add_argument('--canny_upper', type=int, default=200)
     parser.add_argument('--image_width', type=int, default=150)
+    parser.add_argument('--memoize_bounding_boxes', type=bool, default=True)
     args = parser.parse_args()
     return args
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     save_files = args.save_files
     stage = args.stage
     if stage == "train_test":
-        cross_validation(file_path, get_hyper_args(), 0.8)
+        cross_validation(file_path, get_hyper_args())
     elif stage  == "train":
         pass
     elif stage == "test":

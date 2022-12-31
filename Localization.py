@@ -66,9 +66,9 @@ def plate_detection(image, hyper_args):
 	# By using contour detection
 	cnts, _ = cv2.findContours(edged, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	# Save only 3 largest contours
-	cnts = sorted(cnts, key = cv2.contourArea, reverse=True)[:2]
+	cnts = sorted(cnts, key = cv2.contourArea, reverse=True)[:10]
 	for cnt in cnts:
-		approx = cv2.approxPolyDP(cnt, 0.015 * cv2.arcLength(cnt, True), True)
+		approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
 		rect = cv2.minAreaRect(cnt)
 		if len(approx) == 4: #and (len(centers) == 0
 			#or next(filter(lambda center: abs(center[0] - rect[0][0]) > 30 and abs(center[1] - rect[0][1]) > 30, centers), None) is not None):
@@ -84,23 +84,23 @@ def plate_detection(image, hyper_args):
 	#points.sort(key=lambda p: (p[0] + p[1], p[0]))
 	#boxes.append(np.array(points))
 	
-	# Default position if not able to find a bounding box on current frame
-	global last_boxes
-	global last_image
-	# Guard clause for first frame
-	if last_image is None: last_image = image
-	# If new frame (not similar to last one), set new last_image
-	if cv2.matchTemplate(image, last_image, 1) > 0.2:
-		last_image = image
-		last_boxes = list()
-	# If no plates are found, set to previous plates
-	if len(boxes) == 0:
-		boxes = last_boxes
-	# Else rewrite last boxes and image
-	else:
-		last_boxes = boxes
-		last_image = image
-	boxes = np.array(boxes)
+	if hyper_args.memoize_bounding_boxes:
+		# Default position if not able to find a bounding box on current frame
+		global last_boxes
+		global last_image
+		# Guard clause for first frame
+		if last_image is None: last_image = image
+		# If new frame (not similar to last one), set new last_image
+		if cv2.matchTemplate(image, last_image, 1) > 0.2:
+			last_image = image
+			last_boxes = list()
+		# If no plates are found, set to previous plates
+		if len(boxes) == 0:
+			boxes = last_boxes
+		# Else rewrite last boxes and image
+		else:
+			last_boxes = boxes
+			last_image = image
 	return plate_imgs, boxes
 
 # Approved from lab_1_color_and_histograms
