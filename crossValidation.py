@@ -67,14 +67,21 @@ def shoelaceArea(box):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 # Use Jordan curve's theorem for a ray-casting algorithm
-def isContained(p, b): 
+def isContained(p, b, offset = 0): 
     # Pick arbitrary ray for testing intersections
-    testline = [p, (10000, p[1])]
+    testline = [p, (1000, p[1] + offset)]
     c = 0
+    intersections = set()
     # For each side of the box, check if the ray intersects the side
     for i in range(0, 4):
         checkline = [b[i], b[(i + 1) % 4]]
-        if lineIntersect(testline[0], testline[1], checkline[0], checkline[1]) is not None:
+        intersect = lineIntersect(testline[0], testline[1], checkline[0], checkline[1]) 
+        if intersect is not None:
+            # If intersects two sides on same point - intersects edgepoint
+            # Offset ray and redo containment check
+            if intersect in intersections: return isContained(p, b, offset + 10)
+            else:
+                intersections.add(intersect)
             c += 1
     # If intersects even number of lines, outside the polygon, otherwise in
     return c % 2

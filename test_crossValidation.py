@@ -1,6 +1,6 @@
 import pytest
 import math
-from crossValidation import shoelaceArea, intersect, evaluate_single_box
+from crossValidation import shoelaceArea, intersect, evaluate_single_box, isContained, lineIntersect
 
 shoelaceTests = [
     # rectangle
@@ -19,7 +19,10 @@ intersectionTests = [
     # some overlap
     ([(0, 0), (0, 2), (2, 2), (2, 0)], [(1, 1), (3, 1), (3, 3), (1, 3)], [(1, 1), (1, 2), (2, 2), (2, 1)]),
     # random
-    ([(3, 3), (2, 6), (0, 5), (3, 1)], [(1, 1), (2, 0), (3, 7), (1, 4)], [(1, 4), (1, 11 / 3), (2.28, 1.96), (2.6, 4.2), (19 / 9, 17 / 3)])
+    ([(3, 3), (2, 6), (0, 5), (3, 1)], [(1, 1), (2, 0), (3, 7), (1, 4)], [(1, 4), (1, 11 / 3), (2.28, 1.96), (2.6, 4.2), (19 / 9, 17 / 3)]),
+    # random #2
+    ([(225, 375), (228, 314), (452, 325), (449, 386)], [(226, 316), (449, 325), (447, 377), (230, 372)], 
+        [(227.126213592233, 331.7669902912621), (227.89787234042552, 316.07659574468084), (449, 325), (447, 377), (230, 372)])
 ]
 
 evaluationTests = [
