@@ -94,9 +94,9 @@ def plate_detection(image, hyper_args):
 		# - Check that contour approximates a quadilateral
 		# - Check that ratio of said quad is some epsilon away from 4.5, the most common license plate ratio
 		# - Check that perimeter is large enough to be considered a plate (project desc guarantees 100 plate width, hence at least 2 times that)
-		# - Check that said contour does not approximate already checked area, by comparing centers (200 pixels on x, 50 on y)
+		# - Check that said contour does not approximate already checked area, by comparing centers (100 pixels on x, 30 on y)
 		if len(approx) == 4 and abs(ratio - 4.5) <= hyper_args.contour_ratio_epsilon and peri > 200 and (len(centers) == 0
-			or next(filter(lambda c: abs(c[0] - rect[0][0]) > 50 and abs(c[1] - rect[0][1]) > 200, centers), None) is not None):
+			or next(filter(lambda c: abs(c[0] - rect[0][0]) > 100 or abs(c[1] - rect[0][1]) > 30, centers), None) is not None):
 			# Find bounding box endpoints and store them
 			centers.append(rect[0])
 			box = cv2.boxPoints(rect)
@@ -110,10 +110,10 @@ def plate_detection(image, hyper_args):
 			# Hence the more complicated logic
 			rot = rect[2] if rect[2] < 45 else rect[2] - 90
 			# Rotate image to make license plate x-axis aligned
-			img = cv2.warpAffine(img, cv2.getRotationMatrix2D(rect[0], rot, 1), (img.shape[1], img.shape[0]))
+			rot_img = cv2.warpAffine(img, cv2.getRotationMatrix2D(rect[0], rot, 1), (img.shape[1], img.shape[0]))
 			# Crop and store plate
-			img = cv2.getRectSubPix(img, (int(rect[1][0]), int(rect[1][1])) if rect[2] < 45 else (int(rect[1][1]), int(rect[1][0])), tuple(map(int, rect[0])))
-			plate_imgs.append(imutils.resize(img, width=hyper_args.image_width))
+			rot_img = cv2.getRectSubPix(rot_img, (int(rect[1][0]), int(rect[1][1])) if rect[2] < 45 else (int(rect[1][1]), int(rect[1][0])), tuple(map(int, rect[0])))
+			plate_imgs.append(imutils.resize(rot_img, width=hyper_args.image_width))
 	
 	# ---------------------------------------
 	# -------- STAGE X - DEFAULTING ---------

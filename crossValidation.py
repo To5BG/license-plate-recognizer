@@ -38,7 +38,7 @@ def cross_validation(file_path, hyper_args):
     train_and_test_model(images, boundingBoxes, hyper_args)
 
 def train_and_test_model(data, labels, hyper_args):
-    best_train = 0
+    best_train = (0, 0)
     best_hyper_arg = []
     hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
     test_x = []
@@ -56,7 +56,7 @@ def train_and_test_model(data, labels, hyper_args):
     print("Best match: ")
     print("Train set: " + str(best_train))
     print("Test set: " + str(best_test))
-    print("Best hyper-parameters: " + best_hyper_arg)
+    print("Best hyper-parameters: " + str(best_hyper_arg))
     return best_hyper_arg
 
 # Using regular shoelace area formula for any polygon possible
@@ -68,6 +68,8 @@ def shoelaceArea(box):
 
 # Use Jordan curve's theorem for a ray-casting algorithm
 def isContained(p, b, offset = 0): 
+    # Boundary case
+    if p in set(b): return True
     # Pick arbitrary ray for testing intersections
     testline = [p, (1000, p[1] + offset)]
     c = 0
@@ -82,7 +84,7 @@ def isContained(p, b, offset = 0):
             if intersect in intersections: return isContained(p, b, offset + 10)
             else:
                 intersections.add(intersect)
-            c += 1
+                c += 1
     # If intersects even number of lines, outside the polygon, otherwise in
     return c % 2
 
@@ -155,15 +157,19 @@ def evaluate_bounding_boxes(x, y, hyper_args):
     boxes = []
     default = [(0, 0), (0, 0), (0, 0), (0, 0)]
 
-    hyper_args.memoize_bounding_boxes = False
+    hyper_args.memoize_bounding_boxes = True
     for i in range(0, len(x)):
         res = Localization.plate_detection(x[i], hyper_args)[1]
-        while len(res) > len(y[i]): y[i].append(default)
+        # If resulting detections are more than ground truths -> get only best guesses
+        if len(res) > len(y[i]): 
+            res = sorted(res, key=lambda b: np.max([evaluate_single_box(list(map(tuple, b)), yb) for yb in y[i]]), reverse=True)[:len(y[i])]
+        # If resulting detections are less than ground truths -> add defaults
         while len(res) != len(y[i]): res.append(default)
         boxes.append(res)
 
     successScore = 0
     overlapScore = 0
+    total = 0
 
     # Frameboxes refers to many bounding boxes on same frame (for Category 3, for ex)
     for i in range(0, len(boxes)): 
@@ -171,12 +177,18 @@ def evaluate_bounding_boxes(x, y, hyper_args):
         frameboxes = sorted(boxes[i], key=lambda b: b[0][0])
         for j in range(0, len(frameboxes)):
             fb = list(map(tuple, frameboxes[j]))
-            scores = evaluate_single_box(fb, y[i][j])
-            successScore += scores[0]
-            overlapScore += scores[1]
+            ss, os = evaluate_single_box(fb, y[i][j])
+            print('--------------')
+            print(fb)
+            print(y[i][j])
+            print(ss)
+            print(os)
+            successScore += ss
+            overlapScore += os
+            total += 1
   
-    successScore /= (len(x))
-    overlapScore /= (len(x))
+    successScore /= total
+    overlapScore /= total
 
     print("Hyper parameters:" + str(hyper_args))
     print("Score (successful matches):" + str(successScore * 100.0) + "%")

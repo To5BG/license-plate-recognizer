@@ -7,6 +7,7 @@ import pandas as pd
 
 def get_args():
     parser = argparse.ArgumentParser()
+    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie III/Video51_2.avi')
     parser.add_argument('--file_path', type=str, default='dataset/dummytestvideo.avi')
     args = parser.parse_args()
     return args 
