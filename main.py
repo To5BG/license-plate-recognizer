@@ -38,6 +38,9 @@ def get_hyper_args():
     parser.add_argument('--canny_upper', type=int, default=200)
     parser.add_argument('--image_width', type=int, default=150)
     parser.add_argument('--memoize_bounding_boxes', type=bool, default=True)
+    parser.add_argument('--contour_ratio_epsilon', type=float, default=1.5)
+    parser.add_argument('--contour_approximation_epsilon', type=float, default=0.025)
+    
     args = parser.parse_args()
     return args
 
