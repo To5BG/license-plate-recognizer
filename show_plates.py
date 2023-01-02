@@ -1,13 +1,13 @@
 import argparse
 from Localization import plate_detection
-from main import get_hyper_args
+from main import get_localization_hyper_args
 import cv2 
 import numpy as np
 import pandas as pd
 
 def get_args():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie III/Video51_2.avi')
+    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie IV/Video89_2.avi')
     parser.add_argument('--file_path', type=str, default='dataset/dummytestvideo.avi')
     args = parser.parse_args()
     return args 
@@ -78,7 +78,7 @@ while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
   if not ret: break
-  detections, borders = plate_detection(frame, get_hyper_args())
+  detections, borders = plate_detection(frame, get_localization_hyper_args(), True)
   if nextFrame == frame_count:
     pointarr = list()
     while nextFrame == frame_count:
