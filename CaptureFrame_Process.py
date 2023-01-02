@@ -18,7 +18,7 @@ Inputs:(three)
 	3. save_path: final .csv file path
 Output: None
 """
-def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, hyper_args):
+def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, localization_hyper_args, recognition_hyper_args):
 
 	vid = cv2.VideoCapture(file_path)
 	# Check if camera opened successfully
@@ -44,8 +44,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, hype
 		if frame_count % rate == 0:
 			if saveFiles:
 				cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
-			plates, _ = Localization.plate_detection(frame, hyper_args)
-			plate_numbers = Recognize.segment_and_recognize(plates)
+			plates, _ = Localization.plate_detection(frame, localization_hyper_args)
+			plate_numbers = Recognize.segment_and_recognize(plates, recognition_hyper_args)
 			for pnum in plate_numbers:
 				#### ASSUMES LICENSE PLATES DO NOT REPEAT
 				#### ALSO WON'T ALLOW FOR MULTI-FRAME VALIDATION

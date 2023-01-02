@@ -19,7 +19,7 @@ def get_args():
     return args
 
 
-def get_hyper_args():
+def get_localization_hyper_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--contrast_stretch', type=float, default=0.7)
     parser.add_argument('--gaussian_blur_k', type=int, default=7)
@@ -44,6 +44,12 @@ def get_hyper_args():
     args = parser.parse_args()
     return args
 
+def get_recognition_hyper_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--contrast_stretch', type=float, default=0.85)
+    
+    args = parser.parse_args()
+    return args
 
 # In this file, you need to pass three arguments into CaptureFrame_Process function.
 if __name__ == '__main__':
@@ -58,9 +64,9 @@ if __name__ == '__main__':
     sample_frequency = args.sample_frequency
     save_files = args.save_files
     stage = args.stage
-    if stage == "train_test":
-        cross_validation(file_path, get_hyper_args())
-    elif stage  == "train":
-        pass
+    if stage == "train_test_localization":
+        cross_validation(file_path, get_localization_hyper_args(), 0)
+    elif stage  == "train_test_recognition":
+        cross_validation(file_path, get_recognition_hyper_args(), 1)
     elif stage == "test":
-        CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_hyper_args())
+        CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_localization_hyper_args(), get_recognition_hyper_args())

@@ -4,7 +4,16 @@ import matplotlib.path as mlp
 import Localization
 import cv2
 
-def cross_validation(file_path, hyper_args):
+def cross_validation(file_path, hyper_args, test_stage):
+    if test_stage == 0:
+        cross_validate_localization(file_path, hyper_args)
+    if test_stage == 1:
+        cross_validate_recognition(file_path, hyper_args)
+
+def cross_validate_recognition(file_path, hyper_args):
+    pass
+
+def cross_validate_localization(file_path, hyper_args):
     images = []
     groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
     boundingBoxes = []
