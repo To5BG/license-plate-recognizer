@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./')
     parser.add_argument('--sample_frequency', type=int, default=2)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test')
+    parser.add_argument('--stage', type=str, default='train_test_localization')
     args = parser.parse_args()
     return args
 
