@@ -64,9 +64,11 @@ if __name__ == '__main__':
     sample_frequency = args.sample_frequency
     save_files = args.save_files
     stage = args.stage
+    stage = "train_test_localization"
     if stage == "train_test_localization":
         cross_validation(file_path, get_localization_hyper_args(), 0)
     elif stage  == "train_test_recognition":
         cross_validation(file_path, get_recognition_hyper_args(), 1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_localization_hyper_args(), get_recognition_hyper_args())
+

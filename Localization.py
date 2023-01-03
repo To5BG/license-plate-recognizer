@@ -114,7 +114,7 @@ def plate_detection(image, hyper_args, debug = False):
 			# - Check that contour approximates a quadilateral
 			# - Check that ratio of said quad is some epsilon away from 4.5, the most common license plate ratio
 			# - Check that perimeter is large enough to be considered a plate (project desc guarantees 100 plate width, hence at least 2 times that)
-			# - Check that said contour does not approximate already checked area, by comparing centers (100 pixels on x, 30 on y)
+			# - Check that said contour does not approximate already checked area, by comparing centers (100 pixels on x, 30 on y) -- kakvo
 			if (
 				len(approx) == 4 and 
 				abs(ratio - 4.5) <= hyper_args.contour_ratio_epsilon and 
