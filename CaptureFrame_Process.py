@@ -4,6 +4,7 @@ import pandas as pd
 import Localization
 import Recognize
 
+
 """
 In this file, you will define your own CaptureFrame_Process funtion. In this function,
 you need three arguments: file_path(str type, the video file), sample_frequency(second), save_path(final results saving path).
@@ -17,9 +18,11 @@ Inputs:(three)
 	3. save_path: final .csv file path
 Output: None
 """
-def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles):
+def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, localization_hyper_args, recognition_hyper_args):
+
 	vid = cv2.VideoCapture(file_path)
 	# Check if camera opened successfully
+
 	if (vid.isOpened()== False): 
 		print("Error opening video stream or file")
 	# Create image folder is saveFiles is True
@@ -41,8 +44,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles):
 		if frame_count % rate == 0:
 			if saveFiles:
 				cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
-			plates, _ = Localization.plate_detection(frame)
-			plate_numbers = Recognize.segment_and_recognize(plates)
+			plates, _ = Localization.plate_detection(frame, localization_hyper_args)
+			plate_numbers = Recognize.segment_and_recognize(plates, recognition_hyper_args)
 			for pnum in plate_numbers:
 				#### ASSUMES LICENSE PLATES DO NOT REPEAT
 				#### ALSO WON'T ALLOW FOR MULTI-FRAME VALIDATION
