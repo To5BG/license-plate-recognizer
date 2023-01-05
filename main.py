@@ -47,6 +47,13 @@ def get_localization_hyper_args():
 def get_recognition_hyper_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--contrast_stretch', type=float, default=0.85)
+    parser.add_argument('--gaussian_blur_k', type=int, default=7)
+    parser.add_argument('--gaussian_blur_sigma', type=float, default=1)
+    parser.add_argument('--sharpen_k', type=int, default=11)
+    parser.add_argument('--sharpen_sigma', type=float, default=1.5)
+    parser.add_argument('--bifilter_k', type=int, default=11)
+    parser.add_argument('--bifilter_sigma1', type=float, default=7)
+    parser.add_argument('--bifilter_sigma2', type=float, default=15)
     
     args = parser.parse_args()
     return args
@@ -64,11 +71,11 @@ if __name__ == '__main__':
     sample_frequency = args.sample_frequency
     save_files = args.save_files
     stage = args.stage
-    stage = "train_test_localization"
+    stage = "train_test_recognition"
     if stage == "train_test_localization":
         cross_validation(file_path, get_localization_hyper_args(), 0)
     elif stage  == "train_test_recognition":
-        cross_validation(file_path, get_recognition_hyper_args(), 1)
+        cross_validation("dataset/localizedLicensePlates", get_recognition_hyper_args(), 1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_localization_hyper_args(), get_recognition_hyper_args())
 

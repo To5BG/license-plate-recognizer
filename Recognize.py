@@ -2,11 +2,12 @@ import cv2
 import numpy as np
 import os
 
-from Localization import sharpKernel
+import Localization
 
 sift = None
-reference_images = {}
-reference_sifts = {}
+reference_images = []
+reference_sifts = []
+letters = []
 
 """
 In this file, you will define your own segment_and_recognize function.
@@ -42,7 +43,7 @@ def segment_and_recognize(plate_imgs, hyper_args, quick_check=False):
 # Go through all files in provided filepath, and images to a in-memory dictionary
 # this can be optimized later to contain the sifts directly but it is fine for now
 def create_database(path):
-    global reference_images, reference_sifts, sift
+    global reference_images, reference_sifts, sift, letters
 
     for f in os.listdir(path):
         if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.bmp'):
@@ -50,8 +51,9 @@ def create_database(path):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
             img = cv2.resize(img, (64, 80))
-            reference_images[f.split('.')[0]] = img
-            reference_sifts[f.split('.')[0]] = sift.detectAndCompute(img, None)[1]
+            reference_images.append(img)
+            reference_sifts.append(sift.detectAndCompute(img, None))
+            letters.append(f.split('.')[0])
 
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
@@ -62,12 +64,11 @@ def recognize_plate(image, hyper_args):
     img = cv2.GaussianBlur(img, (hyper_args.gaussian_blur_k, hyper_args.gaussian_blur_k),
                            hyper_args.gaussian_blur_sigma)
     img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
-    img = cv2.filter2D(img, -1, sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
+    img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # threshold image for easier contour computation in same format as ground truth - will also later be used for
     # xor verification
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY_INV)[1]
+    thresh = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY_INV)[1]
 
     contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
@@ -93,8 +94,8 @@ def recognize_character(char):
     difference_scores = []
     images = []
 
-    for r in reference_images:
-        k2, d2 = reference_sifts[reference_images.index(r)]
+    for i, r in enumerate(reference_images):
+        k2, d2 = sift.detectAndCompute(r, None) #for some reason it gives a glich with the sift in-mem database
         r = cv2.resize(r, (char.shape[1], char.shape[0]))
         # Sharpen the image using a filter
         r = cv2.filter2D(r, -1, kernel)
@@ -107,23 +108,31 @@ def recognize_character(char):
                 good_matches.append(m)
 
         distance = sum(m.distance for m in good_matches) / len(good_matches) if len(
-            good_matches) > 0 else 1000000000  # some arbitrarily large value if there are no sift matches at all
+            good_matches) > 0 else 100000000  # some arbitrarily large value if there are no sift matches at all
         difference_scores.append(difference_score(char, r))
         allDistances.append(distance)
         images.append(r)
 
     # Normalize both lists
-    allDistances = (allDistances - np.mean(allDistances)) / np.std(allDistances)
-    difference_scores = (difference_scores - np.mean(difference_scores)) / np.std(difference_scores)
+    minV = min(allDistances)
+    maxV = max(allDistances)
+    allDistances = np.array(allDistances)
+    #allDistances = (allDistances - minV) / (maxV - minV)
+    difference_scores = np.array(difference_scores)
+    minV = min(difference_scores)
+    maxV = max(difference_scores)
+    difference_scores = (difference_scores - minV) / (maxV - minV)
+
 
     for i in range(len(allDistances)):
-        allDistances[i] += difference_scores[i]
-        allDistances[i] /= 2
+        #print(allDistances[i])
+       # print(difference_scores[i])
+        allDistances[i] *= difference_scores[i]
+        #allDistances[i] /= 2
 
     index = np.argmin(allDistances)
-    best_image = images[index]
 
-    return reference_images.index(best_image)
+    return letters[index]
 
 
 # function to cut up the plate into individual characters - tests by area size
@@ -134,7 +143,7 @@ def segment_plate(character_contours, image):
     for c in character_contours:
         x, y, w, h = cv2.boundingRect(c)
 
-        if np.isclose(h / w, 1.75, 0.5) and w * h > 0.05 * imageArea:  # testing by area size and aspect ratio
+        if np.isclose(h / w, 2, 0.75) and w * h > 0.025 * imageArea:  # testing by area size and aspect ratio
             img = image[y:y + h, x:x + w]
             img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
             characters.append(img)

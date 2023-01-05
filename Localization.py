@@ -6,6 +6,7 @@ last_image = None
 last_boxes = list()
 last_plate_imgs = list()
 desired_color_range = None
+i = None
 
 """
 In this file, you need to define plate_detection function.
@@ -163,6 +164,17 @@ def plate_detection(image, hyper_args, debug = False):
 			last_image = image
 			last_boxes = boxes
 			last_plate_imgs = plate_imgs
+
+	# #output for recognition
+	# global i
+	# if i is None:
+	# 	i = 0
+	#
+	# for plate in plate_imgs:
+	# 	cv2.imwrite("dataset/localizedLicensePlates/" + str(i) + ".bmp", plate)
+	# 	i += 1
+
+
 	return plate_imgs, boxes
 
 # Approved from Lab_1_Color_And_Histograms
