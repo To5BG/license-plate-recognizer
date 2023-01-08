@@ -1,6 +1,6 @@
 import pytest
 import math
-from crossValidation import shoelaceArea, intersect, evaluate_single_box, isContained, lineIntersect
+from cross_validation_localization import shoelaceArea, intersect, evaluate_single_box
 
 shoelaceTests = [
     # rectangle
@@ -23,6 +23,7 @@ intersectionTests = [
     # random #2
     ([(225, 375), (228, 314), (452, 325), (449, 386)], [(226, 316), (449, 325), (447, 377), (230, 372)], 
         [(227.126213592233, 331.7669902912621), (227.89787234042552, 316.07659574468084), (449, 325), (447, 377), (230, 372)]),
+    # random #3
     ([(211, 285), (222, 248), (372, 292), (361, 329)], [(220, 246), (369, 288), (357, 327), (211, 285)],
         [(211, 285), (222, 248), (368.1194731890875, 290.86171213546567), (357, 327)])
 ]

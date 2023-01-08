@@ -11,6 +11,7 @@ from  crossValidation import cross_validation
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi')
+    parser.add_argument('--file_path_recognition', type=str, default='./dataset/localizedLicensePlates')
     parser.add_argument('--output_path', type=str, default='./')
     parser.add_argument('--sample_frequency', type=int, default=6)
     parser.add_argument('--save_files', type=bool, default=False)
@@ -69,18 +70,15 @@ def get_recognition_hyper_args():
 if __name__ == '__main__':
     args = get_args()
 
-    if args.output_path is None:
-        output_path = os.getcwd()
-
-    else:
-        output_path = args.output_path
-    file_path = args.file_path
-    sample_frequency = args.sample_frequency
-    save_files = args.save_files
+    output_path = os.getcwd() if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
-        cross_validation(file_path, get_localization_hyper_args(), 0)
+        cross_validation(args.file_path, get_localization_hyper_args(), 0)
     elif stage  == "train_test_recognition":
-        cross_validation("dataset/localizedLicensePlates", get_recognition_hyper_args(), 1)
+        cross_validation(args.file_path_recognition, get_recognition_hyper_args(), 1)
     elif stage == "test":
-        CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_localization_hyper_args(), get_recognition_hyper_args())
+        CaptureFrame_Process.CaptureFrame_Process(
+            args.file_path, args.sample_frequency, 
+            output_path, args.save_files, 
+            get_localization_hyper_args(), 
+            get_recognition_hyper_args())
