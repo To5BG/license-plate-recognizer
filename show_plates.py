@@ -1,14 +1,16 @@
 import argparse
 from Localization import plate_detection
-from main import get_localization_hyper_args
+from Recognize import segment_and_recognize
+from main import get_localization_hyper_args, get_recognition_hyper_args
 import cv2 
 import numpy as np
 import pandas as pd
 
 def get_args():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie IV/Video89_2.avi')
+    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie I/Video7_2.avi')
     parser.add_argument('--file_path', type=str, default='dataset/dummytestvideo.avi')
+    parser.add_argument('--stage', type=int, default=1)
     args = parser.parse_args()
     return args 
 
@@ -69,7 +71,7 @@ nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[
 addEntry = False
 # Frame count
 frame_count = 0
-skip10Frames = 0
+skipFrames = 0
 # Manual Box Points
 mbp = []
 # Boolean flag for manual framing
@@ -86,8 +88,8 @@ while(cap.isOpened()):
       nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   frame_count += 1
-  if skip10Frames != 0: 
-    skip10Frames -= 1
+  if skipFrames != 0: 
+    skipFrames -= 1
     continue
 
   detections, borders = plate_detection(frame, get_localization_hyper_args(), True)
@@ -106,6 +108,10 @@ while(cap.isOpened()):
   # Display cropped plates
   for j, plate in enumerate(detections):
     cv2.imshow('Cropped plate #%d' % j, detections[j])
+
+  # Display recognition results
+  if get_args().stage == 1:
+    print(segment_and_recognize(detections, get_recognition_hyper_args(), debug=True))
 
   a = cv2.waitKey(playbackSpeed)
   # Press P on keyboard to pause
@@ -126,9 +132,9 @@ while(cap.isOpened()):
   if a == ord('q'):
     break
   if a == ord('x'):
-    skip10Frames = 10
+    skipFrames = 10
   if a == ord('c'):
-    skip10Frames = 50
+    skipFrames = 50
 # When everything done, release the video capture object
 cap.release()
 # Closes all the frames
