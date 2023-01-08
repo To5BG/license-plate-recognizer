@@ -2,8 +2,7 @@ import argparse
 import os
 import CaptureFrame_Process
 import numpy as np
-from  crossValidation import cross_validation
-
+import cross_validation
 
 
 # define the required arguments: video path(file_path), sample frequency(second), saving path for final result table
