@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import argparse
 from Recognize import segment_and_recognize
 
 last_image = None
@@ -142,7 +143,10 @@ def plate_detection(image, hyper_args, debug = False):
 				rot_img = cv2.warpAffine(image, cv2.getRotationMatrix2D(rect[0], rot, 1), (image.shape[1], image.shape[0]))
 				# Crop and store plate
 				rot_img = cv2.getRectSubPix(rot_img, (int(rect[1][0]), int(rect[1][1])) if rect[2] < 45 else (int(rect[1][1]), int(rect[1][0])), tuple(map(int, rect[0])))
-				plate_imgs.append(cv2.resize(rot_img, hyper_args.image_dim))
+				resized_img = cv2.resize(rot_img, hyper_args.image_dim)
+				if segment_and_recognize(resized_img, get_quick_check_hyper_args(), False, True) == 'F': continue
+				desired_color_range = (ml, mh)
+				plate_imgs.append(resized_img)
 
 		if len(boxes) != 0: break
 	
@@ -196,3 +200,22 @@ def sharpKernel(kernel, sigma):
 		g = cv2.getGaussianKernel(kernel, sigma)
 		sharpen_kernel -= g @ g.T
 	return sharpen_kernel
+
+def get_quick_check_hyper_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--contrast_stretch', type=float, default=0.95)
+    parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((1, 20)))
+    parser.add_argument('--opening_kernel_size', type=tuple, default=(3, 3))
+    parser.add_argument('--vertical_border_low_threshold', type=int, default=3)
+    parser.add_argument('--min_char_jump', type=int, default=3)
+    parser.add_argument('--horizontal_border_low_threshold', type=int, default=25)
+    parser.add_argument('--horizontal_char_low_threshold', type=int, default=4)
+    parser.add_argument('--char_segment_threshold', type=int, default=6)
+    parser.add_argument('--sharpen_k', type=int, default=11)
+    parser.add_argument('--sharpen_sigma', type=float, default=1.5)
+    parser.add_argument('--bifilter_k', type=int, default=11)
+    parser.add_argument('--bifilter_sigma1', type=float, default=7)
+    parser.add_argument('--bifilter_sigma2', type=float, default=15)
+    
+    args = parser.parse_args()
+    return args

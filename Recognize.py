@@ -35,7 +35,7 @@ def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False
         create_database("dataset/SameSizeNumbers/")
         bf = cv2.BFMatcher.create()
     for i, plate_img in enumerate(plate_imgs):
-        recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug))
+        recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug, quick_check))
     return recognized_plates
 
 # Go through all files in provided filepath, and images to a in-memory dictionary
@@ -57,7 +57,13 @@ def create_database(path):
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
-def recognize_plate(image, n, hyper_args, debug):
+def recognize_plate(image, n, hyper_args, debug, quick_check):
+    if quick_check:
+        characterImages = segment_plate(image, n, hyper_args, debug)
+        if len(characterImages) == 0: return 'F'
+        _, d = recognize_character(char, i, debug)
+        if d < 2000: res = 'T'
+        return 'F'
     # preprocessing steps - sharpen image and improve contour results
     img = image.copy()
     if hyper_args.contrast_stretch != 0:
@@ -101,8 +107,7 @@ def recognize_plate(image, n, hyper_args, debug):
     res = ""
     if len(characterImages) == 0: return res
     for i, char in enumerate(characterImages):
-        res += str(recognize_character(char, i, debug))
-
+        res += str(recognize_character(char, i, debug)[0])
     return res
 
 # Using cv2's SIFT implementation directly - approved from Lab_6_Find_Contours_SIFT
@@ -142,8 +147,8 @@ def recognize_character(char, n, debug):
     scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
     low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-    return low1[0]
-    #if abs(low1[1] / low2[1] - 1) > 0.1: return low1[0]
+    return low1
+    #if abs(low1[1] / low2[1] - 1) > 0.1: return low1
     #return ''
 
 # Function to segment the plate into individual characters
