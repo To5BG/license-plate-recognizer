@@ -7,6 +7,7 @@ import Localization
 sift = None
 reference_images = {}
 ref_sift_desc = {}
+bf = None
 
 """
 In this file, you will define your own segment_and_recognize function.
@@ -26,12 +27,13 @@ Hints:
 """
 def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False):
     recognized_plates = []
-    global sift
+    global sift, bf
     # If not-instantiated, create new SIFT feature extractor and load reference database
     if sift is None:
         sift = cv2.SIFT_create(1)
         create_database("dataset/SameSizeLetters/")
         create_database("dataset/SameSizeNumbers/")
+        bf = cv2.BFMatcher.create()
     for i, plate_img in enumerate(plate_imgs):
         recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug))
     return recognized_plates
@@ -98,8 +100,8 @@ def recognize_plate(image, n, hyper_args, debug):
     characterImages = segment_plate(img, n, hyper_args, debug)
     res = ""
     if len(characterImages) == 0: return res
-    for char in characterImages:
-        res += str(recognize_character(char))
+    for i, char in enumerate(characterImages):
+        res += str(recognize_character(char, i, debug))
 
     return res
 
@@ -112,7 +114,16 @@ def sift_descriptor(img):
     # Else average over all keypoints
     return np.average(desc, axis=0)
  
-def recognize_character(char):
+def diff_score_sift(test, ref):
+    global bf
+    matches = bf.knnMatch(test, ref, k=1)
+    return np.sum(list(map(lambda x:x[0].distance, matches)))
+
+def diff_score_xor(test, ref):
+    # return the number of non-zero pixels after xoring
+    return len(np.where(cv2.bitwise_xor(test, ref) != 0)[0])
+
+def recognize_character(char, n, debug):
     global ref_sift_desc
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if len(cnts) == 0: return ''
@@ -120,14 +131,20 @@ def recognize_character(char):
 
     x, y, w, h = cv2.boundingRect(cnt)
     char = char[y : y + h, x : x + w]
+    char = cv2.resize(char, (64, 80))
+    if debug:
+        cv2.imshow("Character#%d" % n, char)
 
-    char_sift_desc = sift_descriptor(char)
-    if len(char_sift_desc) == 0: return ''
-    scores = {k : np.linalg.norm(char_sift_desc - ref) for k, ref in ref_sift_desc.items()}
+    #char_sift_desc = sift_descriptor(char)
+    #print(char_sift_desc)
+    #if len(char_sift_desc) == 0: return ''
+    #scores = {k : diff_score_sift(char_sift_desc, ref) for k, ref in ref_sift_desc.items()}
+    scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
     low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-    if abs(low1[1] / low2[1] - 1) > 0.5: return low1[0]
-    return ''
+    return low1[0]
+    #if abs(low1[1] / low2[1] - 1) > 0.1: return low1[0]
+    #return ''
 
 # Function to segment the plate into individual characters
 def segment_plate(image, n, hyper_args, debug):
