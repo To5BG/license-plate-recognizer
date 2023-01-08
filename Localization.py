@@ -6,7 +6,6 @@ last_image = None
 last_boxes = list()
 last_plate_imgs = list()
 desired_color_range = None
-i = None
 
 """
 In this file, you need to define plate_detection function.
@@ -60,11 +59,14 @@ def plate_detection(image, hyper_args, debug = False):
 		
 		# Define color range
 		# Similar to Lab_1_Color_And_Histograms color segmentation
-		colorMin = np.array(ml)
-		colorMax = np.array(mh)
-		# Segment only the selected color from the image and leave out all the rest (apply a mask)
-		mask = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), colorMin, colorMax)
-		plate_imgs = cv2.bitwise_and(img, img, mask=mask)
+		if ml is None or mh is None:
+			plate_imgs = img
+		else:
+			colorMin = np.array(ml)
+			colorMax = np.array(mh)
+			# Segment only the selected color from the image and leave out all the rest (apply a mask)
+			mask = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), colorMin, colorMax)
+			plate_imgs = cv2.bitwise_and(img, img, mask=mask)
 
 		# ---------------------------------------
 		# ------ STAGE 3 - CANNY & MORPH --------
@@ -77,17 +79,19 @@ def plate_detection(image, hyper_args, debug = False):
 		# Using cv2's morph interface directly - approved from Lab_2_Morphology
 		## Noise reduction after finding segmentation
 		# Using morphological filtering
-		edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel, iterations=1)
-		edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel.T, iterations=1)
-		edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
+		if ml is None or mh is None:
+			edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=1)
+			edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=1)
+			edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
+		else:
+			edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel, iterations=1)
+			edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel.T, iterations=1)
+			edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 
-		edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=4)
-		edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=4)
-		edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
+			edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=4)
+			edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=4)
+			edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 
-		edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel)
-		edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel.T)
-		edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 		if debug: cv2.imshow("Edges detected", edged)
 		
 		# ---------------------------------------
@@ -101,8 +105,8 @@ def plate_detection(image, hyper_args, debug = False):
 		# By using contour detection
 		# Using cv2's contour detection implementation directly - approved from Lab_6_Find_Contours_SIFT
 		cnts, _ = cv2.findContours(edged, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-		# Check only 10 largest contours
-		cnts = sorted(cnts, key = cv2.contourArea, reverse=True)[:10]
+		# Get only some of the contours
+		cnts = sorted(cnts, key = cv2.contourArea, reverse=True)[:(min(len(cnts), 100) if ml is None or mh is None else min(len(cnts), 20))]
 		for cnt in cnts:
 			# Keep perimeter for later check and approximation
 			peri = cv2.arcLength(cnt, True)
@@ -115,7 +119,7 @@ def plate_detection(image, hyper_args, debug = False):
 			# - Check that contour approximates a quadilateral
 			# - Check that ratio of said quad is some epsilon away from 4.5, the most common license plate ratio
 			# - Check that perimeter is large enough to be considered a plate (project desc guarantees 100 plate width, hence at least 2 times that)
-			# - Check that said contour does not approximate already checked area, by comparing centers (100 pixels on x, 30 on y) -- kakvo
+			# - Check that said contour does not approximate already checked area, by comparing centers (100 pixels on x, 30 on y)
 			if (
 				len(approx) == 4 and 
 				abs(ratio - 4.5) <= hyper_args.contour_ratio_epsilon and 
@@ -164,16 +168,6 @@ def plate_detection(image, hyper_args, debug = False):
 			last_image = image
 			last_boxes = boxes
 			last_plate_imgs = plate_imgs
-
-	# #output for recognition
-	# global i
-	# if i is None:
-	# 	i = 0
-	#
-	# for plate in plate_imgs:
-	# 	cv2.imwrite("dataset/localizedLicensePlates/" + str(i) + ".bmp", plate)
-	# 	i += 1
-
 
 	return plate_imgs, boxes
 
