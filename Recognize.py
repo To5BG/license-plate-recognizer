@@ -58,12 +58,6 @@ def create_database(path):
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
 def recognize_plate(image, n, hyper_args, debug, quick_check):
-    if quick_check:
-        characterImages = segment_plate(image, n, hyper_args, debug)
-        if len(characterImages) == 0: return 'F'
-        _, d = recognize_character(char, i, debug)
-        if d < 2000: res = 'T'
-        return 'F'
     # preprocessing steps - sharpen image and improve contour results
     img = image.copy()
     if hyper_args.contrast_stretch != 0:
@@ -77,7 +71,7 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     # Threshold image
     img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)[1]
     # Invert threshold if there are more white than black pixels
-    if len(np.where(img[5:(len(img) - 5)] == 255)[0]) > len(np.where(img[5:(len(img) - 5)] == 0)[0]):
+    if len(np.where(img[10:(len(img) - 10)] == 255)[0]) > len(np.where(img[10:(len(img) - 10)] == 0)[0]):
         img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
 
     # Apply morphological operations
@@ -109,9 +103,14 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     # Segment into characters, and accumulate recognitions
     characterImages = segment_plate(img, n, hyper_args, debug)
     res = ""
-    if len(characterImages) == 0: return res
-    for i, char in enumerate(characterImages):
-        res += str(recognize_character(char, i, debug)[0])
+    if len(characterImages) == 0: return 'F' if quick_check else res
+    tdist = 0
+    for i, char_img in enumerate(characterImages):
+        char, dist = recognize_character(char_img, i, debug, quick_check)
+        tdist += dist
+        res += str(char)
+    print(res, tdist, quick_check)
+    if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
     return res
 
 # Using cv2's SIFT implementation directly - approved from Lab_6_Find_Contours_SIFT
@@ -132,7 +131,7 @@ def diff_score_xor(test, ref):
     # return the number of non-zero pixels after xoring
     return len(np.where(cv2.bitwise_xor(test, ref) != 0)[0])
 
-def recognize_character(char, n, debug):
+def recognize_character(char, n, debug, quick_check):
     global ref_sift_desc
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if len(cnts) == 0: return ''
@@ -150,9 +149,15 @@ def recognize_character(char, n, debug):
     #scores = {k : diff_score_sift(char_sift_desc, ref) for k, ref in ref_sift_desc.items()}
     scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
-    low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-    if low1[1] < 2500: return low1 #or (low1[1] / low2[1] - 1) > 0.1: return low1
-    return ('', 9999)
+    if quick_check:
+        l = sorted(scores.items(), key=lambda x: x[1])[0]
+        if l[1] < 2500: return l
+        return ('', 9999)
+    else:
+        low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
+        # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), maybe (2, Z))
+        if low1[1] < 2500: return low1 #or (low1[1] / low2[1] - 1) > 0.1: return low1
+        return ('', 9999)
 
 # Function to segment the plate into individual characters
 def segment_plate(image, n, hyper_args, debug):
@@ -207,7 +212,7 @@ def segment_plate(image, n, hyper_args, debug):
         # For cropped image, get white pixels per row to determine if a character is captured
         rows = np.array([len(np.where(curr_img[i] == 255)[0]) for i in range(0, image.shape[0])])
         # If not enough rows have sufficient count of white pixels - consider fluke/dash -> skip
-        if len(np.where(rows > hyper_args.horizontal_char_low_threshold)[0]) < hyper_args.char_segment_threshold: continue
+        if len(np.where(rows < hyper_args.horizontal_char_low_threshold)[0]) > hyper_args.char_segment_threshold: continue
         images.append(curr_img)
         last = curr
     return images

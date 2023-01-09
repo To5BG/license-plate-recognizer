@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import argparse
 from Recognize import segment_and_recognize
+from main import get_recognition_hyper_args
 
 last_image = None
 last_boxes = list()
@@ -24,12 +25,23 @@ Hints:
 	2. You may need to define two ways for localizing plates(yellow or other colors)
 """
 def plate_detection(image, hyper_args, debug = False):
-    # Contrast stretch the image
-	img = image.copy()
 
 	# ---------------------------------------
 	# ------- STAGE 1 - PREPROCESING --------
 	# ---------------------------------------
+
+	global last_image, desired_color_range, last_boxes, last_plate_imgs
+	# Guard clause for first frame
+	if last_image is None: last_image = image
+	# If new frame (not similar to last one), set new last_image and reset color range
+	if cv2.matchTemplate(image, last_image, 1) > 0.2:
+		last_image = image
+		desired_color_range = None
+		last_boxes = list()
+		last_plate_imgs = list()
+
+    # Contrast stretch the image
+	img = image.copy()
 	if hyper_args.contrast_stretch != 0:
 		img = contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
 	# Blur to remove noise
@@ -46,28 +58,17 @@ def plate_detection(image, hyper_args, debug = False):
 	# Go through every range until enough license plates are found
 	for ml, mh in zip(hyper_args.mask_low, hyper_args.mask_high):
 
-		global last_image, desired_color_range
-		# Guard clause for first frame
-		if last_image is None: last_image = image
-		# If new frame (not similar to last one), set new last_image and reset color range
-		if cv2.matchTemplate(image, last_image, 1) > 0.2:
-			last_image = image
-			desired_color_range = None
-
 		# If already have preferred color range and does not match current frame, skip iteration
 		if desired_color_range is not None and (
 			set(desired_color_range[0]) != set(ml) and set(desired_color_range[1]) != set(mh)): continue
 		
 		# Define color range
 		# Similar to Lab_1_Color_And_Histograms color segmentation
-		if ml is None or mh is None:
-			plate_imgs = img
-		else:
-			colorMin = np.array(ml)
-			colorMax = np.array(mh)
-			# Segment only the selected color from the image and leave out all the rest (apply a mask)
-			mask = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), colorMin, colorMax)
-			plate_imgs = cv2.bitwise_and(img, img, mask=mask)
+		colorMin = np.array(ml)
+		colorMax = np.array(mh)
+		# Segment only the selected color from the image and leave out all the rest (apply a mask)
+		mask = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), colorMin, colorMax)
+		plate_imgs = cv2.bitwise_and(img, img, mask=mask)
 
 		# ---------------------------------------
 		# ------ STAGE 3 - CANNY & MORPH --------
@@ -80,7 +81,7 @@ def plate_detection(image, hyper_args, debug = False):
 		# Using cv2's morph interface directly - approved from Lab_2_Morphology
 		## Noise reduction after finding segmentation
 		# Using morphological filtering
-		if ml is None or mh is None:
+		if set(ml) == set([0, 0, 0]) or set(mh) == set([255, 255, 255]):
 			edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=1)
 			edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=1)
 			edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
@@ -127,11 +128,6 @@ def plate_detection(image, hyper_args, debug = False):
 				peri > 200 and 
 				(len(centers) == 0 or next(filter(lambda c: abs(c[0] - rect[0][0]) > 100 or abs(c[1] - rect[0][1]) > 30, centers), None) is not None)
 			):
-				# Find bounding box endpoints and store them
-				centers.append(rect[0])
-				box = cv2.boxPoints(rect)
-				boxes.append(np.array(box).astype(np.int32))
-
 				# ---------------------------------------
 				# --- STAGE 5 - WARPING / CROPPING ------
 				# ---------------------------------------
@@ -141,10 +137,15 @@ def plate_detection(image, hyper_args, debug = False):
 				rot = rect[2] if rect[2] < 45 else rect[2] - 90
 				# Rotate image to make license plate x-axis aligned
 				rot_img = cv2.warpAffine(image, cv2.getRotationMatrix2D(rect[0], rot, 1), (image.shape[1], image.shape[0]))
-				# Crop and store plate
+				# Crop and resize plate
 				rot_img = cv2.getRectSubPix(rot_img, (int(rect[1][0]), int(rect[1][1])) if rect[2] < 45 else (int(rect[1][1]), int(rect[1][0])), tuple(map(int, rect[0])))
 				resized_img = cv2.resize(rot_img, hyper_args.image_dim)
-				if segment_and_recognize(resized_img, get_quick_check_hyper_args(), False, True) == 'F': continue
+				# If plate is too disimilar with other plate imgs, consider as noise
+				if 'F' in segment_and_recognize([resized_img], get_recognition_hyper_args(), True, True): continue
+				# Store results
+				centers.append(rect[0])
+				box = cv2.boxPoints(rect)
+				boxes.append(np.array(box).astype(np.int32))
 				desired_color_range = (ml, mh)
 				plate_imgs.append(resized_img)
 
@@ -157,14 +158,8 @@ def plate_detection(image, hyper_args, debug = False):
 	# More logic used to return the old stored license plate if no contours are found for current frame
 	# (With of course, checking that frame has remained mostly the same)
 	if hyper_args.memoize_bounding_boxes:
-		# Default position if not able to find a bounding box on current frame
-		global last_boxes, last_plate_imgs
-		# If new frame (not similar to last one), set new last_image
-		if cv2.matchTemplate(image, last_image, 1) > 0.2:
-			last_boxes = list()
-			last_plate_imgs = list()
-		# If no plates are found, set to previous plates
-		if len(boxes) == 0:
+		# If less plates are found, set to previous plates
+		if len(boxes) < len(last_boxes):
 			boxes = last_boxes
 			plate_imgs = last_plate_imgs
 		# Else rewrite last boxes and image
@@ -200,22 +195,3 @@ def sharpKernel(kernel, sigma):
 		g = cv2.getGaussianKernel(kernel, sigma)
 		sharpen_kernel -= g @ g.T
 	return sharpen_kernel
-
-def get_quick_check_hyper_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.95)
-    parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((1, 20)))
-    parser.add_argument('--opening_kernel_size', type=tuple, default=(3, 3))
-    parser.add_argument('--vertical_border_low_threshold', type=int, default=3)
-    parser.add_argument('--min_char_jump', type=int, default=3)
-    parser.add_argument('--horizontal_border_low_threshold', type=int, default=25)
-    parser.add_argument('--horizontal_char_low_threshold', type=int, default=4)
-    parser.add_argument('--char_segment_threshold', type=int, default=6)
-    parser.add_argument('--sharpen_k', type=int, default=11)
-    parser.add_argument('--sharpen_sigma', type=float, default=1.5)
-    parser.add_argument('--bifilter_k', type=int, default=11)
-    parser.add_argument('--bifilter_sigma1', type=float, default=7)
-    parser.add_argument('--bifilter_sigma2', type=float, default=15)
-    
-    args = parser.parse_args()
-    return args

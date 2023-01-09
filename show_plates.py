@@ -14,8 +14,9 @@ def get_args():
     args = parser.parse_args()
     return args 
 
+# Click event for creating ground truth bounding boxes for localization crossval
 header = ['x0', 'y0', 'x1', 'y1', 'x2', 'y2', 'x3', 'y3', 'frame', 'time']
-def captureBox(event, x, y, flags, param):
+def captureBoxEvent(event, x, y, flags, param):
   global mbp, frame_count, fps, addEntry
   if event == cv2.EVENT_LBUTTONUP:
     # If 4 points are accrued, add new box entry
@@ -52,6 +53,19 @@ def captureBox(event, x, y, flags, param):
     # Add point to entry
     mbp.append((x, y))
 
+# Click event for cropping plates for recognition crossval
+def cropPlateEvent(event, x, y, flags, param):
+  global mcp
+  if event == cv2.EVENT_LBUTTONUP:
+    # If 4 points are accrued, add new box entry
+    if len(mcp) == 4:
+      # Save plate as file
+      mcp = []
+  elif event == cv2.EVENT_LBUTTONDOWN:
+    # Add point to entry
+    mcp.append((x, y))
+
+
 # Create a VideoCapture object and read from input file
 # If the input is the camera, pass 0 instead of the video file name
 cap = cv2.VideoCapture(get_args().file_path)
@@ -69,11 +83,16 @@ csvLine = 0
 nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
 # On manual select mode - add entry instead of overwriting (for more than 1 license plate on an image)
 addEntry = False
+# Toggle between data collection for localization and recognition (bounding box vs crop plate)
+cropPlate = False
 # Frame count
 frame_count = 0
+# Decremental counter for quick-skipping frames
 skipFrames = 0
-# Manual Box Points
+# Manual Box points for loc
 mbp = []
+# Manual points for rec
+mcp = [] 
 # Boolean flag for manual framing
 usedCaretForNextFrame = False
 # Read until video is completed
@@ -102,7 +121,7 @@ while(cap.isOpened()):
 
   # Display the original frame with bounding boxes
   cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
-  cv2.setMouseCallback('Original frame', captureBox)
+  cv2.setMouseCallback('Original frame', captureBoxEvent)
   cv2.imshow('Original frame', frame)
   
   # Display cropped plates
@@ -125,6 +144,11 @@ while(cap.isOpened()):
       if a == ord('m'):
         addEntry = not addEntry
         msg = "Entries of same frame are now added" if addEntry else "Entries of same frame are now overriden"
+        print(msg)
+      if a == ord('b'):
+        cropPlate = not cropPlate
+        msg = "Recognition data collection mode" if cropPlate else "Localization data collection mode."
+        cv2.setMouseCallback('Original frame', cropPlateEvent if cropPlate else captureBoxEvent)
         print(msg)
       if a == ord('p'):
         break
