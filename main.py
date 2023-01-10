@@ -78,7 +78,7 @@ if __name__ == '__main__':
     if stage == "train_test_localization":
         cval(args.file_path, get_localization_hyper_args(), 0)
     elif stage == "train_test_recognition":
-        cval(args.file_path_recognition, get_recognition_hyper_args(), get_localization_hyper_args(),  1)
+        cval(args.file_path_recognition, get_recognition_hyper_args(),  1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(
             args.file_path, args.sample_frequency,

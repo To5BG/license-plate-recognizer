@@ -6,7 +6,7 @@ import Recognize
 import Localization
 
 
-def cross_validate(file_path, hyper_args, localization_hyper_args):
+def cross_validate(file_path, hyper_args):
     plates = []
     names = []
 
