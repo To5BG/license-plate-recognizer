@@ -60,7 +60,7 @@ def create_database(path):
 def recognize_plate(image, n, hyper_args, debug, quick_check):
     # preprocessing steps - sharpen image and improve contour results
     img = image.copy()
-    if hyper_args.contrast_stretch != 0:
+    if False:
         img = Localization.contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
 	# Blur to remove noise
     img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
@@ -109,7 +109,9 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
         char, dist = recognize_character(char_img, i, debug, quick_check)
         tdist += dist
         res += str(char)
-    print(res, tdist, quick_check)
+
+    #print(res, tdist, quick_check)
+
     if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
     return res
 

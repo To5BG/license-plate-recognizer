@@ -2,7 +2,7 @@ import argparse
 import os
 import CaptureFrame_Process
 import numpy as np
-import cross_validation
+from cross_validation import cross_validation as cval
 
 
 # define the required arguments: video path(file_path), sample frequency(second), saving path for final result table
@@ -29,8 +29,10 @@ def get_localization_hyper_args():
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.5)
-    parser.add_argument('--mask_low', type=object, default=[[0,0,0]])#[[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
-    parser.add_argument('--mask_high', type=object, default=[[255,255,255]])#[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
+    parser.add_argument('--mask_low', type=object,
+                        default=[[0, 0, 0]])  # [[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
+    parser.add_argument('--mask_high', type=object, default=[
+        [255, 255, 255]])  # [[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
     parser.add_argument('--threshold_value', type=int, default=245)
     parser.add_argument('--opening_kernel', type=object, default=np.ones((1, 2)))
     parser.add_argument('--canny_lower', type=int, default=75)
@@ -39,9 +41,10 @@ def get_localization_hyper_args():
     parser.add_argument('--memoize_bounding_boxes', type=bool, default=True)
     parser.add_argument('--contour_ratio_epsilon', type=float, default=1.25)
     parser.add_argument('--contour_approximation_epsilon', type=float, default=0.03)
-    
+
     args = parser.parse_args()
     return args
+
 
 def get_recognition_hyper_args():
     parser = argparse.ArgumentParser()
@@ -61,9 +64,10 @@ def get_recognition_hyper_args():
     parser.add_argument('--bifilter_k', type=int, default=11)
     parser.add_argument('--bifilter_sigma1', type=float, default=7)
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
-    
+
     args = parser.parse_args()
     return args
+
 
 # In this file, you need to pass three arguments into CaptureFrame_Process function.
 if __name__ == '__main__':
@@ -72,12 +76,12 @@ if __name__ == '__main__':
     output_path = os.getcwd() if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
-        cross_validation(args.file_path, get_localization_hyper_args(), 0)
-    elif stage  == "train_test_recognition":
-        cross_validation(args.file_path_recognition, get_recognition_hyper_args(), 1)
+        cval(args.file_path, get_localization_hyper_args(), 0)
+    elif stage == "train_test_recognition":
+        cval(args.file_path_recognition, get_recognition_hyper_args(), get_localization_hyper_args(),  1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(
-            args.file_path, args.sample_frequency, 
-            output_path, args.save_files, 
-            get_localization_hyper_args(), 
+            args.file_path, args.sample_frequency,
+            output_path, args.save_files,
+            get_localization_hyper_args(),
             get_recognition_hyper_args())
