@@ -14,35 +14,9 @@ def cross_validate(file_path, hyper_args):
     for f in os.listdir(file_path):
         names.append(f.split(".")[0])
         img = cv2.imread(file_path + "/" + f)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
         plates.append(img)
 
-    # groundTruthTest = open("dataset/dummyGroundTruthTest.csv", "r").read().split('\n')
-    #
-    # cap = cv2.VideoCapture(file_path)
-    # if cap.isOpened() == False: print("Error opening video stream or file")
-    # csvLine = 0
-    # nextFrame = -1 if groundTruthTest[csvLine + 1] == '' else int(
-    #     groundTruthTest[csvLine + 1].split(',')[-2])  # gets the frame that contains
-    #
-    # while cap.isOpened() and (nextFrame < 1500 and nextFrame != -1) :  # limits it to category I
-    #     ret, frame = cap.read()
-    #     csvLine += 1
-    #     name = groundTruthTest[csvLine].split(',')[2].replace('-', '')
-    #     plate = Localization.plate_detection(frame, localization_hyper_args)[0][0]
-    #     names.append(name) # temporarily removes dashes
-    #     print(name)
-    #     nextFrame = -1 if groundTruthTest[csvLine + 1] == '' else int(groundTruthTest[csvLine + 1].split(',')[-2])
-    #     cv2.imshow(name, plate)
-    #     #cv2.waitKey(0)
-    #     plates.append(plate)
-    #
-    # cap.release()
-    # cv2.destroyAllWindows()
-
     train_and_test_model_recognition(plates, names, hyper_args)
-
 
 def train_and_test_model_recognition(x, y, hyper_args):
     best_hyper_arg = None
@@ -80,7 +54,7 @@ def evaluate_plates(images, ground_truth, hyper_args):
     plates = Recognize.segment_and_recognize(images, hyper_args)
 
     for i, plate in enumerate(images):
-        res = evaluate_single_plate(plates[i], ground_truth[i], hyper_args)
+        res = evaluate_single_plate(plate, ground_truth[i], hyper_args)
         recognized_plates += res[0]
         percentage += res[1]
 
