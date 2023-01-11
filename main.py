@@ -2,7 +2,7 @@ import argparse
 import os
 import CaptureFrame_Process
 import numpy as np
-from cross_validation import cross_validation as cval
+import cross_validation
 
 
 # define the required arguments: video path(file_path), sample frequency(second), saving path for final result table
@@ -76,9 +76,9 @@ if __name__ == '__main__':
     output_path = os.getcwd() if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
-        cval(args.file_path, get_localization_hyper_args(), 0)
+        cross_validation.cross_validation(args.file_path, get_localization_hyper_args(), 0, get_recognition_hyper_args())
     elif stage == "train_test_recognition":
-        cval(args.file_path_recognition, get_recognition_hyper_args(),  1)
+        cross_validation.cross_validation(args.file_path_recognition, get_recognition_hyper_args(),  1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(
             args.file_path, args.sample_frequency,

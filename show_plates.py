@@ -128,7 +128,7 @@ while(cap.isOpened()):
     skipFrames -= 1
     continue
 
-  detections, borders = plate_detection(frame, get_localization_hyper_args(), True)
+  detections, borders = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
   # Add predicted box
   bbframe = frame.copy()
   for border in borders:

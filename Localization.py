@@ -1,8 +1,6 @@
 import cv2
 import numpy as np
-import argparse
 from Recognize import segment_and_recognize
-from main import get_recognition_hyper_args
 
 last_image = None
 last_boxes = list()
@@ -26,7 +24,7 @@ Hints:
 """
 
 
-def plate_detection(image, hyper_args, debug=False):
+def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
     # ---------------------------------------
     # ------- STAGE 1 - PREPROCESING --------
     # ---------------------------------------
@@ -149,7 +147,7 @@ def plate_detection(image, hyper_args, debug=False):
                 int(rect[1][1]), int(rect[1][0])), tuple(map(int, rect[0])))
                 resized_img = cv2.resize(rot_img, hyper_args.image_dim)
                 # If plate is too disimilar with other plate imgs, consider as noise
-                if 'F' in segment_and_recognize([resized_img], get_recognition_hyper_args(), debug=True, quick_check=True): continue
+                if 'F' in segment_and_recognize([resized_img], quick_rec_hyper_args, debug=False, quick_check=True): continue
                 # Store results
                 centers.append(rect[0])
                 box = cv2.boxPoints(rect)

@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import Localization
 import cv2
 
-def cross_validate(file_path, hyper_args):
+def cross_validate(file_path, hyper_args, rec_hyper_args):
     images = []
     groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
     boundingBoxes = []
@@ -34,9 +34,9 @@ def cross_validate(file_path, hyper_args):
         
     cap.release()
     cv2.destroyAllWindows()
-    train_and_test_model(images, boundingBoxes, hyper_args)
+    train_and_test_model(images, boundingBoxes, hyper_args, rec_hyper_args)
 
-def train_and_test_model(data, labels, hyper_args):
+def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
     best_train = (0, 0)
     best_hyper_arg = []
     hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
@@ -45,13 +45,13 @@ def train_and_test_model(data, labels, hyper_args):
 
     for hyper_arg in hyper_args:
         x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
-        res = evaluate_bounding_boxes(x_train, y_train, hyper_arg)
+        res = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
         if res[0] > best_train[0]: #natural selection of results that improve
             best_train = res
             best_hyper_arg = hyper_arg
             test_x = x_test
             test_y = y_test
-    best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg)
+    best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg, rec_hyper_args)
     print("Best match: ")
     print("Train set: " + str(best_train))
     print("Test set: " + str(best_test))
@@ -152,13 +152,13 @@ def evaluate_single_box(model_box, test_box):
     return success, overlap
 
 
-def evaluate_bounding_boxes(x, y, hyper_args):
+def evaluate_bounding_boxes(x, y, hyper_args, rec_hyper_args):
     boxes = []
     default = [(0, 0), (0, 0), (0, 0), (0, 0)]
 
     hyper_args.memoize_bounding_boxes = True
     for i in range(0, len(x)):
-        res = Localization.plate_detection(x[i], hyper_args)[1]
+        res = Localization.plate_detection(x[i], hyper_args, rec_hyper_args)[1]
         # If resulting detections are more than ground truths -> get only best guesses
         if len(res) > len(y[i]): 
             res = sorted(res, key=lambda b: np.max([evaluate_single_box(list(map(tuple, b)), yb) for yb in y[i]]), reverse=True)[:len(y[i])]

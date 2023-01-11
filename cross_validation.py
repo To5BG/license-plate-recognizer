@@ -1,8 +1,8 @@
 from cross_validation_localization import cross_validate as cvl
 from cross_validation_recognition import cross_validate as cvr
 
-def cross_validation(file_path, hyper_args, test_stage):
+def cross_validation(file_path, hyper_args, test_stage, rec_args=None):
     if test_stage == 0:
-        cvl(file_path, hyper_args)
+        cvl(file_path, hyper_args, rec_args)
     if test_stage == 1:
         cvr(file_path, hyper_args)
