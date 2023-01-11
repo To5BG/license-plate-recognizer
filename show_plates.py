@@ -109,6 +109,9 @@ frame = None
 cwd = os.path.abspath(os.getcwd())
 # Boolean flag for manual framing
 usedCaretForNextFrame = False
+# Set up widnow with default click event
+cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
+cv2.setMouseCallback('Original frame', captureBoxEvent)
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
@@ -135,8 +138,6 @@ while(cap.isOpened()):
     bbframe = cv2.polylines(bbframe, [points], True, (0, 255, 0), 3)
 
   # Display the original frame with bounding boxes
-  cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
-  cv2.setMouseCallback('Original frame', captureBoxEvent)
   cv2.imshow('Original frame', bbframe)
   
   # Display cropped plates

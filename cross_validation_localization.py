@@ -44,7 +44,7 @@ def train_and_test_model(data, labels, hyper_args):
     test_y = []
 
     for hyper_arg in hyper_args:
-        x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=False)
+        x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
         res = evaluate_bounding_boxes(x_train, y_train, hyper_arg)
         if res[0] > best_train[0]: #natural selection of results that improve
             best_train = res
