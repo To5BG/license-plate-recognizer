@@ -2,7 +2,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import matplotlib.path as mlp
 import Localization
+import Recognize
 import cv2
+import os
 
 def cross_validation(file_path, hyper_args, test_stage):
     if test_stage == 0:
@@ -11,7 +13,19 @@ def cross_validation(file_path, hyper_args, test_stage):
         cross_validate_recognition(file_path, hyper_args)
 
 def cross_validate_recognition(file_path, hyper_args):
-    pass
+    plates = []
+    names = []
+    for f in os.listdir(file_path):
+        names.append(f.split(".")[0])
+        img = cv2.imread(file_path + "/" + f)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
+        plates.append(img)
+
+    results = Recognize.segment_and_recognize(plates, hyper_args)
+
+    print("Ground Truth:\n", names)
+    print("Results:\n", results)
 
 def cross_validate_localization(file_path, hyper_args):
     images = []
@@ -186,6 +200,7 @@ def evaluate_bounding_boxes(x, y, hyper_args):
         frameboxes = sorted(boxes[i], key=lambda b: b[0][0])
         for j in range(0, len(frameboxes)):
             fb = list(map(tuple, frameboxes[j]))
+            # ss - success score, os - overlap score
             ss, os = evaluate_single_box(fb, y[i][j])
             print('--------------')
             print(fb)

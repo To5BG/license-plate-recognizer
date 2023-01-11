@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./')
     parser.add_argument('--sample_frequency', type=int, default=2)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_localization')
+    parser.add_argument('--stage', type=str, default='train_test_recognition')
     args = parser.parse_args()
     return args
 
@@ -29,24 +29,35 @@ def get_localization_hyper_args():
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.5)
-    parser.add_argument('--mask_low', type=object, default=[[10, 115, 115], [0, 0, 225], [0, 25, 45], [0, 125, 25]])#[[10, 115, 115], [0, 0, 225], [0, 25, 45], [0, 125, 25]])
-    parser.add_argument('--mask_high', type=object, default=[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100]])#[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100]])
+    parser.add_argument('--mask_low', type=object, default=[[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], None])
+    parser.add_argument('--mask_high', type=object, default=[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], None])
     parser.add_argument('--threshold_value', type=int, default=245)
     parser.add_argument('--opening_kernel', type=object, default=np.ones((1, 2)))
-    parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((1, 2)))
     parser.add_argument('--canny_lower', type=int, default=75)
     parser.add_argument('--canny_upper', type=int, default=200)
     parser.add_argument('--image_dim', type=tuple, default=(150, 50))
     parser.add_argument('--memoize_bounding_boxes', type=bool, default=True)
     parser.add_argument('--contour_ratio_epsilon', type=float, default=1.25)
-    parser.add_argument('--contour_approximation_epsilon', type=float, default=0.025)
+    parser.add_argument('--contour_approximation_epsilon', type=float, default=0.03)
     
     args = parser.parse_args()
     return args
 
 def get_recognition_hyper_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.85)
+    parser.add_argument('--contrast_stretch', type=float, default=0.95)
+    parser.add_argument('--hitmiss_kernel', type=object, default=np.ones((1, 20)))
+    parser.add_argument('--opening_kernel_size', type=tuple, default=(3, 3))
+    parser.add_argument('--vertical_border_low_threshold', type=int, default=3)
+    parser.add_argument('--min_char_jump', type=int, default=3)
+    parser.add_argument('--horizontal_border_low_threshold', type=int, default=25)
+    parser.add_argument('--horizontal_char_low_threshold', type=int, default=4)
+    parser.add_argument('--char_segment_threshold', type=int, default=6)
+    parser.add_argument('--sharpen_k', type=int, default=11)
+    parser.add_argument('--sharpen_sigma', type=float, default=1.5)
+    parser.add_argument('--bifilter_k', type=int, default=11)
+    parser.add_argument('--bifilter_sigma1', type=float, default=7)
+    parser.add_argument('--bifilter_sigma2', type=float, default=15)
     
     args = parser.parse_args()
     return args
@@ -67,6 +78,6 @@ if __name__ == '__main__':
     if stage == "train_test_localization":
         cross_validation(file_path, get_localization_hyper_args(), 0)
     elif stage  == "train_test_recognition":
-        cross_validation(file_path, get_recognition_hyper_args(), 1)
+        cross_validation("dataset/localizedLicensePlates", get_recognition_hyper_args(), 1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(file_path, sample_frequency, output_path, save_files, get_localization_hyper_args(), get_recognition_hyper_args())
