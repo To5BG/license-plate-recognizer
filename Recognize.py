@@ -141,6 +141,7 @@ def recognize_character(char, n, debug, quick_check):
 
     x, y, w, h = cv2.boundingRect(cnt)
     char = char[y : y + h, x : x + w]
+    #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
     char = cv2.resize(char, (64, 80))
     if debug:
         cv2.imshow("Character#%d" % n, char)
@@ -213,8 +214,12 @@ def segment_plate(image, n, hyper_args, debug):
         curr_img = image[:, last:(curr + 1)]
         # For cropped image, get white pixels per row to determine if a character is captured
         rows = np.array([len(np.where(curr_img[i] == 255)[0]) for i in range(0, image.shape[0])])
+        thresholded_rows = np.where(rows < hyper_args.horizontal_char_low_threshold)[0]
         # If not enough rows have sufficient count of white pixels - consider fluke/dash -> skip
-        if len(np.where(rows < hyper_args.horizontal_char_low_threshold)[0]) > hyper_args.char_segment_threshold: continue
+        if (
+            len(thresholded_rows) > hyper_args.char_segment_threshold #or 
+            #len(set(thresholded_rows).intersection(set(np.arange(20, 30)))) > 5
+            ): continue
         images.append(curr_img)
         last = curr
     return images
