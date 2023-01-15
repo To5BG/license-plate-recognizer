@@ -4,10 +4,7 @@ import os
 
 import Localization
 
-sift = None
 reference_images = {}
-ref_sift_desc = {}
-bf = None
 
 """
 In this file, you will define your own segment_and_recognize function.
@@ -27,13 +24,9 @@ Hints:
 """
 def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False):
     recognized_plates = []
-    global sift, bf
-    # If not-instantiated, create new SIFT feature extractor and load reference database
-    if sift is None:
-        sift = cv2.SIFT_create(1)
+    if len(reference_images) == 0:
         create_database("dataset/SameSizeLetters/")
         create_database("dataset/SameSizeNumbers/")
-        bf = cv2.BFMatcher.create()
     for i, plate_img in enumerate(plate_imgs):
         recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug, quick_check))
     return recognized_plates
@@ -41,7 +34,7 @@ def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False
 # Go through all files in provided filepath, and images to a in-memory dictionary
 # this can be optimized later to contain the sifts directly but it is fine for now
 def create_database(path):
-    global reference_images, sift, ref_sift_desc
+    global reference_images
     for f in os.listdir(path):
         # Look only for relevant image formats
         if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.bmp'):
@@ -53,7 +46,6 @@ def create_database(path):
             img = cv2.resize(img, (64, 80))
             # Store ref image and sift descriptor in global lookup dictionaries
             reference_images[f.split('.')[0]] = img
-            ref_sift_desc[f.split('.')[0]] = sift_descriptor(img)
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
@@ -110,31 +102,14 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
         tdist += dist
         res += str(char)
 
-    #print(res, tdist, quick_check)
-
     if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
     return res
-
-# Using cv2's SIFT implementation directly - approved from Lab_6_Find_Contours_SIFT
-def sift_descriptor(img):
-    global sift
-    _, desc = sift.detectAndCompute(img, None)
-    # If no features captured, return empty descriptor
-    if desc is None or len(desc) == 0: return []
-    # Else average over all keypoints
-    return np.average(desc, axis=0)
- 
-def diff_score_sift(test, ref):
-    global bf
-    matches = bf.knnMatch(test, ref, k=1)
-    return np.sum(list(map(lambda x:x[0].distance, matches)))
 
 def diff_score_xor(test, ref):
     # return the number of non-zero pixels after xoring
     return len(np.where(cv2.bitwise_xor(test, ref) != 0)[0])
 
 def recognize_character(char, n, debug, quick_check):
-    global ref_sift_desc
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if len(cnts) == 0: return ''
     cnt = sorted(cnts, key = cv2.contourArea, reverse=True)[0]
@@ -146,10 +121,6 @@ def recognize_character(char, n, debug, quick_check):
     if debug:
         cv2.imshow("Character#%d" % n, char)
 
-    #char_sift_desc = sift_descriptor(char)
-    #print(char_sift_desc)
-    #if len(char_sift_desc) == 0: return ''
-    #scores = {k : diff_score_sift(char_sift_desc, ref) for k, ref in ref_sift_desc.items()}
     scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
     if quick_check:
