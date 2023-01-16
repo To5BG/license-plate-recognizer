@@ -33,8 +33,13 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
 	frame_count = 0
 	# Calculate sampling rate based on frame count
 	fps = vid.get(cv2.CAP_PROP_FPS)
+	total = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+	progress_bar_rate = total // 100
 	rate = fps // sample_frequency
 	data = {}
+	cache = [{}, {}]
+	last_frame = None
+	fc = 0
 	# Read until video is completed
 	while(vid.isOpened()):
 		# Capture frame-by-frame based on sampling frequency
@@ -44,19 +49,41 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
 		if frame_count % rate == 0:
 			if saveFiles:
 				cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
+			# Localize and recognize plates
 			plates, _ = Localization.plate_detection(frame, localization_hyper_args, recognition_hyper_args)
-			plate_numbers = Recognize.segment_and_recognize(plates, recognition_hyper_args)
-			for pnum in plate_numbers:
-				#### ASSUMES LICENSE PLATES DO NOT REPEAT
-				#### ALSO WON'T ALLOW FOR MULTI-FRAME VALIDATION
-				#### CHANGE LATER
-				if pnum not in data:
-					data[pnum] = (pnum, frame_count, round(frame_count / fps, 5))
+			plate_nums = Recognize.segment_and_recognize(plates, recognition_hyper_args)
+			# Majority voting -> have a cache and save only the most common license plate in the output.csv
+			# Triggered if the scene is different
+			if last_frame is None or cv2.matchTemplate(last_frame, frame, 1) > 0.2:
+				last_frame = frame
+				for c in cache:
+					maj = max(c, key=c.get, default=None)
+					if maj is not None and maj not in data.keys():
+						data[maj] = (maj, fc, round(fc / fps, 5))
+				cache = [{}, {}]
+				fc = frame_count
+			for i, plate_num in enumerate(plate_nums):
+				if plate_num != '':
+					cache[i][plate_num] = cache[i].get(plate_num, 0) + 1
+			if frame_count % progress_bar_rate == 0:
+				updateProgressBar(frame_count, total)
 		frame_count += 1
+	# Finalize progress bar
+	updateProgressBar(frame_count, total)
+	# Add last entry
+	for c in cache:
+		maj = max(c, key=c.get, default=None)
+		if maj is not None and maj not in data.keys():
+			data[maj] = (maj, fc, round(fc / fps, 5))
 	# Save csv
-	pd.DataFrame(list(data.values()), columns=['License plate', 'Frame no.', 'Timestamp(seconds)']).to_csv(
-		os.path.join(save_path, "Output.csv"), index=False)
+	pd.DataFrame(list(data.values()), columns=['License plate', 'Frame no.', 'Timestamp(seconds)']).to_csv(save_path, index=False)
 	# When everything done, release the video capture object
 	vid.release()
 	# Closes all the frames
 	cv2.destroyAllWindows()
+
+def updateProgressBar(curr, total):
+	percent = ("{0:.1f}").format(100 * (curr / float(total)))
+	filledLength = int(50 * curr // total)
+	bar = '█' * filledLength + '-' * (50 - filledLength)
+	print(f'\r{"Progress:"} |{bar}| {percent}% {"Complete"}', end = "\r")

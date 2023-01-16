@@ -11,10 +11,10 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi')
     parser.add_argument('--file_path_recognition', type=str, default='./dataset/localizedLicensePlates')
-    parser.add_argument('--output_path', type=str, default='./')
-    parser.add_argument('--sample_frequency', type=int, default=6)
+    parser.add_argument('--output_path', type=str, default='./Output.csv')
+    parser.add_argument('--sample_frequency', type=int, default=12)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_recognition')
+    parser.add_argument('--stage', type=str, default='test')
     args = parser.parse_args()
     return args
 
@@ -29,10 +29,8 @@ def get_localization_hyper_args():
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.5)
-    parser.add_argument('--mask_low', type=object,
-                        default=[[0, 0, 0]])  # [[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
-    parser.add_argument('--mask_high', type=object, default=[
-        [255, 255, 255]])  # [[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
+    parser.add_argument('--mask_low', type=object, default=[[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
+    parser.add_argument('--mask_high', type=object, default=[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
     parser.add_argument('--threshold_value', type=int, default=245)
     parser.add_argument('--opening_kernel', type=object, default=np.ones((1, 2)))
     parser.add_argument('--canny_lower', type=int, default=75)
@@ -73,7 +71,7 @@ def get_recognition_hyper_args():
 if __name__ == '__main__':
     args = get_args()
 
-    output_path = os.getcwd() if args.output_path is None else args.output_path
+    output_path = os.getcwd() + '/Output.csv' if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
         cross_validation.cross_validation(args.file_path, get_localization_hyper_args(), 0, get_recognition_hyper_args())
