@@ -46,7 +46,7 @@ def get_localization_hyper_args():
 
 def get_recognition_hyper_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.95)
+    parser.add_argument('--contrast_stretch', type=float, default=0.90)
     parser.add_argument('--hitmiss_kernel_1', type=object, default=np.ones((1, 25)))
     parser.add_argument('--hitmiss_kernel_2', type=object, default=np.ones((1, 20)))
     parser.add_argument('--hitmiss_kernel_3', type=object, default=np.ones((50, 1)))

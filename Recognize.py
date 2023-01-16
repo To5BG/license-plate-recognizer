@@ -52,7 +52,7 @@ def create_database(path):
 def recognize_plate(image, n, hyper_args, debug, quick_check):
     # preprocessing steps - sharpen image and improve contour results
     img = image.copy()
-    if False:
+    if hyper_args.contrast_stretch != 0:
         img = Localization.contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
 	# Blur to remove noise
     img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
@@ -85,8 +85,7 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     potential_idx = np.where(rows <= hyper_args.horizontal_border_low_threshold)[0]
     potential_idx = np.append(potential_idx, 0)
     potential_idx = np.append(potential_idx, img.shape[0])
-    img = img[(max(3, np.max(potential_idx[potential_idx <= 12])) - 3)
-        :(min(len(img) - 4, np.min(potential_idx[potential_idx >= 38])) + 3)]
+    img = img[np.max(potential_idx[potential_idx <= 12]):np.min(potential_idx[potential_idx >= 38])]
 
     # If debug is enabled, show thresholded, morphed, and filtered image
     if debug:
@@ -99,11 +98,12 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     tdist = 0
     for i, char_img in enumerate(characterImages):
         char, dist = recognize_character(char_img, i, debug, quick_check)
+        if char == '-' and (res == "" or res.endswith('-')): continue
         tdist += dist
         res += str(char)
-
+        
     if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
-    return res
+    else: return res if len(res) > 4 and tdist < 25000 else ""
 
 def diff_score_xor(test, ref):
     # return the number of non-zero pixels after xoring
@@ -116,10 +116,10 @@ def recognize_character(char, n, debug, quick_check):
 
     x, y, w, h = cv2.boundingRect(cnt)
     char = char[y : y + h, x : x + w]
-    #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
     char = cv2.resize(char, (64, 80))
     if debug:
         cv2.imshow("Character#%d" % n, char)
+    if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
 
     scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
@@ -183,13 +183,15 @@ def segment_plate(image, n, hyper_args, debug):
         curr = border_idx[b]
         # Crop image between two borders (last and curr)
         curr_img = image[:, last:(curr + 1)]
-        # For cropped image, get white pixels per row to determine if a character is captured
+        # For cropped image, get white pixels per row
         rows = np.array([len(np.where(curr_img[i] == 255)[0]) for i in range(0, image.shape[0])])
+        # Threshold rows to determine if a character is captured
         thresholded_rows = np.where(rows < hyper_args.horizontal_char_low_threshold)[0]
-        # If not enough rows have sufficient count of white pixels - consider fluke/dash -> skip
         if (
-            len(thresholded_rows) > hyper_args.char_segment_threshold #or 
-            #len(set(thresholded_rows).intersection(set(np.arange(20, 30)))) > 5
+            # If not enough rows have sufficient count of white pixels - consider fluke -> skip
+            len(thresholded_rows) > hyper_args.char_segment_threshold and not
+            # Unless it is a dash
+            len(set(range(image.shape[0])).difference(set(thresholded_rows)).intersection(range(image.shape[0] // 2 - 5, image.shape[0] // 2 + 5))) > 3
             ): continue
         images.append(curr_img)
         last = curr
