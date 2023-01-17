@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import re
 
 import Localization
 
@@ -32,7 +33,6 @@ def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False
     return recognized_plates
 
 # Go through all files in provided filepath, and images to a in-memory dictionary
-# this can be optimized later to contain the sifts directly but it is fine for now
 def create_database(path):
     global reference_images
     for f in os.listdir(path):
@@ -42,10 +42,12 @@ def create_database(path):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # Provided train letters contain a lot of black spaces, crop that away
             img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
-            # Resize to modulo 16 size for SIFT
-            img = cv2.resize(img, (64, 80))
-            # Store ref image and sift descriptor in global lookup dictionaries
-            reference_images[f.split('.')[0]] = img
+            img = cv2.threshold(cv2.resize(img, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+            # Store ref image in global lookup dictionaries
+            letter = re.split("_|\.", f)[0]
+            if letter not in reference_images.keys():
+                reference_images[letter] = []
+            reference_images[letter].append(img)
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
@@ -54,10 +56,11 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     img = image.copy()
     if hyper_args.contrast_stretch != 0:
         img = Localization.contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
-	# Blur to remove noise
-    img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
-	# Sharpen edges
-    img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
+    for i in range(hyper_args.sharpen_iter):
+        # Blur to remove noise
+        img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
+	    # Sharpen edges
+        img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # Threshold image
@@ -97,19 +100,22 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     if len(characterImages) == 0: return 'F' if quick_check else res
     tdist = 0
     for i, char_img in enumerate(characterImages):
-        char, dist = recognize_character(char_img, i, debug, quick_check)
-        if char == '-' and (res == "" or res.endswith('-')): continue
+        char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check)
+        if char == '-' and (res == "" or res.endswith('-') or i + 1 == len(characterImages)): continue
         tdist += dist
         res += str(char)
         
-    if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
-    else: return res if len(res) > 4 and tdist < 25000 else ""
+    if quick_check: return 'T' if len(res.replace('-','')) > 4 and tdist < hyper_args.plate_dist_threshold else 'F'
+    else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
 
 def diff_score_xor(test, ref):
-    # return the number of non-zero pixels after xoring
-    return len(np.where(cv2.bitwise_xor(test, ref) != 0)[0])
+    res = 0
+    for r in ref:
+        # return the number of non-zero pixels after xoring
+        res += len(np.where(cv2.bitwise_xor(test, r) != 0)[0])
+    return res / len(ref)
 
-def recognize_character(char, n, debug, quick_check):
+def recognize_character(char, n, hyper_args, debug, quick_check):
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if len(cnts) == 0: return ''
     cnt = sorted(cnts, key = cv2.contourArea, reverse=True)[0]
@@ -119,19 +125,27 @@ def recognize_character(char, n, debug, quick_check):
     char = cv2.resize(char, (64, 80))
     if debug:
         cv2.imshow("Character#%d" % n, char)
-    if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
+    if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > hyper_args.dash_threshold: return ('-', 1000)
 
     scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
     if quick_check:
         l = sorted(scores.items(), key=lambda x: x[1])[0]
-        if l[1] < 2500: return l
+        if l[1] < hyper_args.char_dist_threshold: return l
         return ('', 9999)
     else:
         low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-        # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), maybe (2, Z))
-        if low1[1] < 2500: return low1 #or (low1[1] / low2[1] - 1) > 0.1: return low1
+        if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])]
+            and low2[1] / low1[1] < 1.1):
+            pass
+            #print(low1, low2)
+            #return line_check(char, (low1[0], low2[0]))
+        if low1[1] < hyper_args.char_dist_threshold: return low1
         return ('', 9999)
+
+# DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
+def line_check(char, chars):
+    return chars[0]
 
 # Function to segment the plate into individual characters
 def segment_plate(image, n, hyper_args, debug):

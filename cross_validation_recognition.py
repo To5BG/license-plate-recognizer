@@ -77,7 +77,7 @@ def evaluate_single_plate(plate, label):
     maxd = max(len(plate), len(label))
     numChars = (maxd - dist) / maxd
     
-    print(plate, label, success, "\n")
+    if success == 0: print(plate, label, "\n")
     return success, numChars
 
 # Use levenshtein distance between two strings to determine plate character accuracy
