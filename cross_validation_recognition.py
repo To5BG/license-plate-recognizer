@@ -4,6 +4,8 @@ import cv2
 import os
 import Recognize
 import re
+import argparse
+from itertools import product
 
 
 def cross_validate(file_path, hyper_args):
@@ -20,13 +22,17 @@ def cross_validate(file_path, hyper_args):
 
 def train_and_test_model_recognition(x, y, hyper_args):
     best_hyper_arg = None
-    hyper_args = np.array([hyper_args])
     test_X = None
     test_Y = None
     best_train = 0
     best_output = None
 
-    for hyper_arg in hyper_args:
+    for v in product(*hyper_args.values()):
+        hyper_arg_dict = dict(zip(hyper_args, v))
+        parser = argparse.ArgumentParser()
+        for k, v in hyper_arg_dict.items():
+            parser.add_argument('--' + str(k), type=type(v), default=v)
+        hyper_arg = parser.parse_args()
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True)
         matches_plates, _, _ = evaluate_plates(x_train, y_train, hyper_arg)
         if matches_plates > best_train:  # natural selection of results that improve
@@ -40,10 +46,10 @@ def train_and_test_model_recognition(x, y, hyper_args):
     print("Best Percentage of License Plates:", best_matches_plates)
     print("Best Percentage of Characters:", best_matches_chars)
 
-    print("\nBest match:  ")
-    print("Train set: " + str(best_output))
-    print("Test set: " + str(test_Y))
-    # print("Best hyper-parameters: " + str(best_hyper_arg))
+    #print("\nBest match:  ")
+    #print("Train set: " + str(best_output))
+    #print("Test set: " + str(test_Y))
+    print("Best hyper-parameters: " + str(best_hyper_arg))
     return best_hyper_arg
 
 
@@ -61,8 +67,8 @@ def evaluate_plates(images, ground_truth, hyper_args):
     recognized_plates /= len(images)
     percentage /= len(images)
 
-    print("Percentage of Recognized Plates:", recognized_plates * 100, "%")
-    print("Percentage of Recognized Characters:", percentage * 100, "%")
+    #print("Percentage of Recognized Plates:", recognized_plates * 100, "%")
+    #print("Percentage of Recognized Characters:", percentage * 100, "%")
 
     return recognized_plates, percentage, plates
 
@@ -77,7 +83,7 @@ def evaluate_single_plate(plate, label):
     maxd = max(len(plate), len(label))
     numChars = (maxd - dist) / maxd
     
-    if success == 0: print(plate, label, "\n")
+    # if success == 0: print(plate, label, "\n")
     return success, numChars
 
 # Use levenshtein distance between two strings to determine plate character accuracy

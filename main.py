@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./Output.csv')
     parser.add_argument('--sample_frequency', type=int, default=12)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='test')
+    parser.add_argument('--stage', type=str, default='train_test_recognition')
     args = parser.parse_args()
     return args
 
@@ -46,11 +46,11 @@ def get_localization_hyper_args():
 
 def get_recognition_hyper_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.90)
-    parser.add_argument('--hitmiss_kernel_1', type=object, default=np.ones((1, 25)))
-    parser.add_argument('--hitmiss_kernel_2', type=object, default=np.ones((1, 20)))
-    parser.add_argument('--hitmiss_kernel_3', type=object, default=np.ones((50, 1)))
-    parser.add_argument('--hitmiss_kernel_4', type=object, default=np.ones((45, 1)))
+    parser.add_argument('--contrast_stretch', type=float, default=0.64)
+    parser.add_argument('--hitmiss_kernel_1', type=tuple, default=(1, 25))
+    parser.add_argument('--hitmiss_kernel_2', type=tuple, default=(1, 20))
+    parser.add_argument('--hitmiss_kernel_3', type=tuple, default=(50, 1))
+    parser.add_argument('--hitmiss_kernel_4', type=tuple, default=(45, 1))
     parser.add_argument('--opening_kernel_size', type=tuple, default=(3, 3))
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.5)
@@ -74,13 +74,12 @@ def get_recognition_hyper_args():
 # In this file, you need to pass three arguments into CaptureFrame_Process function.
 if __name__ == '__main__':
     args = get_args()
-
     output_path = os.getcwd() + '/Output.csv' if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
-        cross_validation.cross_validation(args.file_path, get_localization_hyper_args(), 0, get_recognition_hyper_args())
+        cross_validation.cross_validation(args.file_path, 0, get_recognition_hyper_args())
     elif stage == "train_test_recognition":
-        cross_validation.cross_validation(args.file_path_recognition, get_recognition_hyper_args(),  1)
+        cross_validation.cross_validation(args.file_path_recognition, 1)
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(
             args.file_path, args.sample_frequency,

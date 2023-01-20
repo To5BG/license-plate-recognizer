@@ -71,10 +71,10 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
 
     # Apply morphological operations
     # Reduce upper and lower borders with hitmiss morph op
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_1))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_2))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_3))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_4))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_1)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_2)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_3)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_4)))
     # Reduce noise with opening morph op, ellipse kernel
     opening_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, hyper_args.opening_kernel_size)
     img = cv2.morphologyEx(img, cv2.MORPH_OPEN, opening_kernel, iterations=1)
