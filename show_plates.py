@@ -24,6 +24,7 @@ def captureBoxEvent(event, x, y, flags, param):
       # Flatten point tuples for csv entry
       e = []
       [e.extend([t[0], t[1]]) for t in mbp]
+      frame_count -= 1
       e.extend([frame_count, frame_count / fps])
       with open('BoundingBoxGroundTruth.csv', 'r+') as f:
         df = f.readlines()
@@ -45,6 +46,7 @@ def captureBoxEvent(event, x, y, flags, param):
         # Otherwise insert a new entry for this frame
         else:
           df.insert(idx, ",".join(map(str, e)) + "\n")
+        frame_count += 1
         # Write new df
         f.seek(0)
         f.writelines(df)
@@ -117,12 +119,15 @@ while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
   if not ret: break
+  print(frame_count)
+  print(nextFrame)
   if nextFrame == frame_count:
     pointarr = list()
     while nextFrame == frame_count:
       csvLine += 1
       nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
+  print(pointarr)
   frame_count += 1
   if skipFrames != 0: 
     skipFrames -= 1
