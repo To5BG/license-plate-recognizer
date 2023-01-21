@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import Localization
 import cv2
+import argparse
+from itertools import product
 
 def cross_validate(file_path, hyper_args, rec_hyper_args):
     images = []
@@ -37,21 +39,27 @@ def cross_validate(file_path, hyper_args, rec_hyper_args):
     train_and_test_model(images, boundingBoxes, hyper_args, rec_hyper_args)
 
 def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
-    best_train = (0, 0)
-    best_hyper_arg = []
-    hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
-    test_x = []
-    test_y = []
+    best_hyper_arg = None
+    test_x = None
+    test_y = None
+    best_train = 0
 
-    for hyper_arg in hyper_args:
+    for v in product(*hyper_args.values()):
+        hyper_arg_dict = dict(zip(hyper_args, v))
+        parser = argparse.ArgumentParser()
+        for k, v in hyper_arg_dict.items():
+            parser.add_argument('--' + str(k), type=type(v), default=v)
+        hyper_arg = parser.parse_args()
         x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
-        res = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
-        if res[0] > best_train[0]: #natural selection of results that improve
-            best_train = res
+        _, overlap = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
+        if overlap > best_train: #natural selection of results that improve
+            best_train = overlap
             best_hyper_arg = hyper_arg
             test_x = x_test
             test_y = y_test
+
     best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg, rec_hyper_args)
+
     print("Best match: ")
     print("Train set: " + str(best_train))
     print("Test set: " + str(best_test))
@@ -140,6 +148,10 @@ def intersect(box1, box2):
 
 
 def evaluate_single_box(model_box, test_box):
+    if set(test_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]):
+        if set(model_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]): return 1, 1
+        else: return 0, 0
+
     area_model_box = shoelaceArea(model_box)
     area_test_box = shoelaceArea(test_box)
 
@@ -156,7 +168,7 @@ def evaluate_bounding_boxes(x, y, hyper_args, rec_hyper_args):
     boxes = []
     default = [(0, 0), (0, 0), (0, 0), (0, 0)]
 
-    hyper_args.memoize_bounding_boxes = True
+    hyper_args.memoize_bounding_boxes = False
     for i in range(0, len(x)):
         res = Localization.plate_detection(x[i], hyper_args, rec_hyper_args)[1]
         # If resulting detections are more than ground truths -> get only best guesses

@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./Output.csv')
     parser.add_argument('--sample_frequency', type=int, default=12)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_recognition')
+    parser.add_argument('--stage', type=str, default='train_test_localization')
     args = parser.parse_args()
     return args
 
@@ -32,13 +32,16 @@ def get_localization_hyper_args():
     parser.add_argument('--mask_low', type=object, default=[[10, 100, 100], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
     parser.add_argument('--mask_high', type=object, default=[[40, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
     parser.add_argument('--threshold_value', type=int, default=245)
-    parser.add_argument('--opening_kernel', type=object, default=np.ones((1, 2)))
+    parser.add_argument('--opening_kernel', type=tuple, default=(1, 2))
     parser.add_argument('--canny_lower', type=int, default=75)
     parser.add_argument('--canny_upper', type=int, default=200)
     parser.add_argument('--image_dim', type=tuple, default=(150, 50))
     parser.add_argument('--memoize_bounding_boxes', type=bool, default=True)
     parser.add_argument('--contour_ratio_epsilon', type=float, default=1.25)
     parser.add_argument('--contour_approximation_epsilon', type=float, default=0.03)
+    parser.add_argument('--contour_perimeter', type=int, default=200)
+    parser.add_argument('--center_offset_lookup', type=tuple, default=(100, 30))
+    
 
     args = parser.parse_args()
     return args

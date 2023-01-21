@@ -86,8 +86,8 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((2, 1)), iterations=1)
             edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
         else:
-            edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel, iterations=1)
-            edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, hyper_args.opening_kernel.T, iterations=1)
+            edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_OPEN, np.ones(hyper_args.opening_kernel), iterations=1)
+            edged_vertical = cv2.morphologyEx(edged, cv2.MORPH_OPEN, np.ones(tuple(reversed(hyper_args.opening_kernel))), iterations=1)
             edged = cv2.bitwise_or(edged_horizontal, edged_vertical)
 
             edged_horizontal = cv2.morphologyEx(edged, cv2.MORPH_DILATE, np.ones((1, 2)), iterations=4)
@@ -127,10 +127,10 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             if (
                     len(approx) == 4 and
                     abs(ratio - 4.5) <= hyper_args.contour_ratio_epsilon and
-                    peri > 200 and
+                    peri > hyper_args.contour_perimeter and
                     (len(centers) == 0 or next(
-                        filter(lambda c: abs(c[0] - rect[0][0]) > 100 or abs(c[1] - rect[0][1]) > 30, centers),
-                        None) is not None)
+                        filter(lambda c: abs(c[0] - rect[0][0]) > hyper_args.center_offset_lookup[0] 
+                            or abs(c[1] - rect[0][1]) > hyper_args.center_offset_lookup[1], centers), None) is not None)
             ):
                 # ---------------------------------------
                 # --- STAGE 5 - WARPING / CROPPING ------

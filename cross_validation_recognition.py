@@ -45,7 +45,6 @@ def train_and_test_model_recognition(x, y, hyper_args):
 
     print("Best Percentage of License Plates:", best_matches_plates)
     print("Best Percentage of Characters:", best_matches_chars)
-
     #print("\nBest match:  ")
     #print("Train set: " + str(best_output))
     #print("Test set: " + str(test_Y))
