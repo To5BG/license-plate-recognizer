@@ -2,8 +2,11 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import Localization
 import cv2
+import os
 import argparse
 from itertools import product
+
+cwd = os.path.abspath(os.getcwd())
 
 def cross_validate(file_path, hyper_args, rec_hyper_args):
     images = []
@@ -147,7 +150,7 @@ def intersect(box1, box2):
     return sorted(list(coords), key=lambda p: np.arctan2(p[1] - avgy, p[0] - avgx))
 
 
-def evaluate_single_box(model_box, test_box):
+def evaluate_single_box(model_box, test_box, img=None, i=0):
     if set(test_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]):
         if set(model_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]): return 1, 1
         else: return 0, 0
@@ -160,6 +163,17 @@ def evaluate_single_box(model_box, test_box):
     area_union = area_model_box + area_test_box - area_intersection
     
     overlap = area_intersection / area_union
+
+    if img is not None:
+        global cwd
+        if not os.path.exists(os.path.join(cwd, "images")):
+            os.makedirs(os.path.join(cwd, "images"))
+        show_img = img.copy()
+        show_img = cv2.polylines(show_img, [np.array([list(ele) for ele in model_box])], True, (255, 0, 0), 3)
+        show_img = cv2.polylines(show_img, [np.array([list(ele) for ele in test_box])], True, (0, 255, 0), 3)
+        show_img = cv2.putText(show_img, str(overlap), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 155), 2, cv2.LINE_AA)
+        cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % i), show_img)
+
     success = 1 if overlap > 0.75 else 0
     return success, overlap
 
@@ -189,12 +203,12 @@ def evaluate_bounding_boxes(x, y, hyper_args, rec_hyper_args):
         for j in range(0, len(frameboxes)):
             fb = list(map(tuple, frameboxes[j]))
             # ss - success score, os - overlap score
-            ss, os = evaluate_single_box(fb, y[i][j])
-            print('--------------')
-            print(fb)
-            print(y[i][j])
-            print(ss)
-            print(os)
+            ss, os = evaluate_single_box(fb, y[i][j], x[i], i)
+            #print('--------------')
+            #print(fb)
+            #print(y[i][j])
+            #print(ss)
+            #print(os)
             successScore += ss
             overlapScore += os
             total += 1
