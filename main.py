@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./Output.csv')
     parser.add_argument('--sample_frequency', type=int, default=12)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_localization')
+    parser.add_argument('--stage', type=str, default='train_test_recognition')
     args = parser.parse_args()
     return args
 
@@ -66,9 +66,14 @@ def get_recognition_hyper_args():
     parser.add_argument('--horizontal_border_low_threshold', type=int, default=15)
     parser.add_argument('--horizontal_char_low_threshold', type=int, default=2)
     parser.add_argument('--char_segment_threshold', type=int, default=20)
-    parser.add_argument('--dash_threshold', type=float, default=0.85)
-    parser.add_argument('--char_dist_threshold', type=int, default=2250)
-    parser.add_argument('--plate_dist_threshold', type=int, default=22500)
+    parser.add_argument('--vertical_ratio', type=float, default=3.5)
+    parser.add_argument('--dash_range', type=int, default=5)
+    parser.add_argument('--dash_threshold', type=int, default=12)
+    parser.add_argument('--dash_size', type=int, default=12)
+    parser.add_argument('--character_footprint_low', type=float, default=0.5)
+    parser.add_argument('--character_footprint_high', type=float, default=0.9)
+    parser.add_argument('--char_dist_threshold', type=int, default=2350)
+    parser.add_argument('--plate_dist_threshold', type=int, default=21500)
 
     args = parser.parse_args()
     return args

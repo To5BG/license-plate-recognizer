@@ -34,7 +34,6 @@ def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False
 
 # Go through all files in provided filepath, and images to a in-memory dictionary
 def create_database(path):
-    global reference_images
     for f in os.listdir(path):
         # Look only for relevant image formats
         if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.bmp'):
@@ -106,10 +105,12 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     tdist = 0
     for i, char_img in enumerate(characterImages):
         char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check)
-        if char == '-' and (res == "" or res.endswith('-') or i + 1 == len(characterImages)): continue
+        if char == '-' and (res == "" or res.endswith('-')): continue
         tdist += dist
         res += str(char)
-        
+    if res.endswith('-'):
+        tdist -= 1000
+        res = res[:-1]
     if quick_check: return 'T' if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else 'F'
     else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
 
@@ -126,13 +127,24 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
     cnt = sorted(cnts, key = cv2.contourArea, reverse=True)[0]
 
     x, y, w, h = cv2.boundingRect(cnt)
-    char = char[y : y + h, x : x + w]
-    char = cv2.resize(char, (64, 80))
-    if debug:
-        cv2.imshow("Character#%d" % n, char)
-    if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > hyper_args.dash_threshold: return ('-', 1000)
+    # If small enough, consider as a dash
+    if w < hyper_args.dash_size and h < hyper_args.dash_size: return ('-', 1000)
 
-    scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
+    cut_char = char[y : y + h, x : x + w]
+    # Calculate character footprint
+    footprint = cut_char.shape[0] * cut_char.shape[1] / (char.shape[0] * char.shape[1])
+    # If too low or too high -> noise
+    if footprint < hyper_args.character_footprint_low or footprint > hyper_args.character_footprint_high: return ('', 9999)
+
+    cut_char = cv2.threshold(cv2.resize(cut_char, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+    # If predominantly vertical, consider as 1 or I
+    if max(w, h) / min(w, h) > hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'))
+    
+    if debug:
+        cv2.imshow("Character#%d" % n, cut_char)
+    #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
+
+    scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
     # Check if the ratio of the two scores is close to 1 (if so return empty)
     if quick_check:
         l = sorted(scores.items(), key=lambda x: x[1])[0]
@@ -142,16 +154,31 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
         low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
         if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])]
             and low2[1] / low1[1] < 1.1):
-            pass
-            #print(low1, low2)
-            #return line_check(char, (low1[0], low2[0]))
+            return extra_check(cut_char, (low1[0], low2[0]))
         if low1[1] < hyper_args.char_dist_threshold: return low1
         return ('', 9999)
 
 # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
-def line_check(char, chars):
-    #lines = cv2.HoughLinesP(char)
-    return chars[0]
+def extra_check(char, chars):
+    if set(chars) == set(['1','I']):
+        return chars[0], diff_score_xor(char, reference_images[chars[0]])
+
+    edged = cv2.Canny(char, 50, 150)
+    lines = cv2.HoughLines(edged, 1, np.pi / 180, 1, None, 0, 0)
+    lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
+    
+    if set(chars) == set(['D', '0']):
+        if len(lines) == 0: return ('0', diff_score_xor(char, reference_images['0']))
+        if lines[0][0][0] <= 18: return ('D', diff_score_xor(char, reference_images['D']))
+    elif set(chars) == set(['B', '8']):
+        pass
+    elif set(chars) == set(['2', 'Z']):
+        pass
+    elif set(chars) == set(['5', 'S']):
+        if len(lines) == 0: return ('S', diff_score_xor(char, reference_images['S']))
+        if lines[0][0][0] <= 18: return ('5', diff_score_xor(char, reference_images['5']))
+    
+    return chars[0], diff_score_xor(char, reference_images[chars[0]])
 
 # Function to segment the plate into individual characters
 def segment_plate(image, n, hyper_args, debug):
@@ -207,11 +234,14 @@ def segment_plate(image, n, hyper_args, debug):
         rows = np.array([len(np.where(curr_img[i] == 255)[0]) for i in range(0, image.shape[0])])
         # Threshold rows to determine if a character is captured
         thresholded_rows = np.where(rows < hyper_args.horizontal_char_low_threshold)[0]
+        actual_white_pixels = set(range(image.shape[0])).difference(set(thresholded_rows))
+        dash_white_pixels = set(range(image.shape[0] // 2 - hyper_args.dash_range, image.shape[0] // 2 + hyper_args.dash_range))
         if (
             # If not enough rows have sufficient count of white pixels - consider fluke -> skip
-            len(thresholded_rows) > hyper_args.char_segment_threshold and not
-            # Unless it is a dash
-            len(set(range(image.shape[0])).difference(set(thresholded_rows)).intersection(range(image.shape[0] // 2 - 5, image.shape[0] // 2 + 5))) > 3
+            len(thresholded_rows) > hyper_args.char_segment_threshold and
+            # Unless it is a dash -> if length of symmetric difference over threshold
+            len(actual_white_pixels.difference(dash_white_pixels).union(dash_white_pixels.difference(actual_white_pixels))) > hyper_args.dash_threshold
+            #len(set(range(image.shape[0])).difference(set(thresholded_rows)).intersection(range(image.shape[0] // 2 - 5, image.shape[0] // 2 + 5))) > 3
             ): continue
         images.append(curr_img)
         last = curr
