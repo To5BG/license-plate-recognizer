@@ -52,22 +52,27 @@ def create_database(path):
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
 def recognize_plate(image, n, hyper_args, debug, quick_check):
-    # preprocessing steps - sharpen image and improve contour results
-    img = image.copy()
-    if hyper_args.contrast_stretch != 0:
-        img = Localization.contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
-    for i in range(hyper_args.sharpen_iter):
-        # Blur to remove noise
-        img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
-	    # Sharpen edges
-        img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Threshold image
-    img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)[1]
-    # Invert threshold if there are more white than black pixels
-    if len(np.where(img[10:(len(img) - 10)] == 255)[0]) > len(np.where(img[10:(len(img) - 10)] == 0)[0]):
-        img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
+    # preprocessing steps - sharpen image and improve contour results
+    overlay_img = np.zeros((image.shape[0], image.shape[1]), np.uint8)
+    overlay_img[:] = 255
+    # Overlay several versions of image with different contrast stretches
+    for c in hyper_args.contrast_stretch:
+        img = image.copy()
+        img = Localization.contrastImprovementContrastStretching(img, c, 0, 255)
+        for i in range(hyper_args.sharpen_iter):
+            # Blur to remove noise
+            img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
+            # Sharpen edges
+            img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Threshold image
+        img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)[1]
+        # Invert threshold if there are more white than black pixels
+        if len(np.where(img[10:(len(img) - 10)] == 255)[0]) > len(np.where(img[10:(len(img) - 10)] == 0)[0]):
+            img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
+        overlay_img = cv2.bitwise_and(overlay_img, img)
+    img = overlay_img
 
     # Apply morphological operations
     # Reduce upper and lower borders with hitmiss morph op
@@ -105,7 +110,7 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
         tdist += dist
         res += str(char)
         
-    if quick_check: return 'T' if len(res.replace('-','')) > 4 and tdist < hyper_args.plate_dist_threshold else 'F'
+    if quick_check: return 'T' if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else 'F'
     else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
 
 def diff_score_xor(test, ref):
@@ -145,6 +150,7 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
 
 # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
 def line_check(char, chars):
+    #lines = cv2.HoughLinesP(char)
     return chars[0]
 
 # Function to segment the plate into individual characters

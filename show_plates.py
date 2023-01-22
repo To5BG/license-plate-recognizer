@@ -8,7 +8,7 @@ import os
 
 def get_args():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie I/Video7_2.avi')
+    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie I/Video171_2.avi')
     parser.add_argument('--file_path', type=str, default='dataset/dummytestvideo.avi')
     parser.add_argument('--stage', type=int, default=1)
     args = parser.parse_args()

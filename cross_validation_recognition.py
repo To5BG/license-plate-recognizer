@@ -27,7 +27,10 @@ def train_and_test_model_recognition(x, y, hyper_args):
     best_train = 0
     best_output = None
 
+    runs = 0
     for v in product(*hyper_args.values()):
+        print(runs)
+        runs += 1
         hyper_arg_dict = dict(zip(hyper_args, v))
         parser = argparse.ArgumentParser()
         for k, v in hyper_arg_dict.items():
