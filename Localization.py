@@ -33,6 +33,10 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
     # Guard clause for first frame
     if last_image is None: last_image = image
     # If new frame (not similar to last one), set new last_image and reset color range
+    # Match template moves the image pattern through the template to find the best match of the image inside the template
+    # In the case of the two images having the same shape, as here, the result is simply a normalized euclidean distance between the two images
+    # Hence a separate implementation was deemed unecessary
+    # https://docs.opencv.org/4.x/df/dfb/group__imgproc__object.html#ga586ebfb0a7fb604b35a23d85391329be
     if cv2.matchTemplate(image, last_image, 1) > 0.2:
         last_image = image
         desired_color_range = None

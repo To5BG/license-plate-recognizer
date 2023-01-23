@@ -54,6 +54,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
 			plate_nums = Recognize.segment_and_recognize(plates, recognition_hyper_args)
 			# Majority voting -> have a cache and save only the most common license plate in the output.csv
 			# Triggered if the scene is different
+			# Match template moves the image pattern through the template to find the best match of the image inside the template
+    		# In the case of the two images having the same shape, as here, the result is simply a normalized euclidean distance between the two images
+    		# Hence a separate implementation was deemed unecessary
+    		# https://docs.opencv.org/4.x/df/dfb/group__imgproc__object.html#ga586ebfb0a7fb604b35a23d85391329be
 			if last_frame is None or cv2.matchTemplate(last_frame, frame, 1) > 0.2:
 				last_frame = frame
 				for c in cache:
