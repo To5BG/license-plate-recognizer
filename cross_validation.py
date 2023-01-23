@@ -23,21 +23,20 @@ def get_localization_hyper_args():
     args["gaussian_blur_k"] = [7]
     args["gaussian_blur_sigma"] = [1]
     args["bifilter_k"] = [11]
-    args["bifilter_sigma1"] = [7]
+    args["bifilter_sigma1"] = [9]
     args["bifilter_sigma2"] = [15]
     args["sharpen_k"] = [11]
-    args["sharpen_sigma"] = [1.5]
-    args["mask_low"] = [[[0, 0, 0]]] #low_mask_permutations
-    args["mask_high"] = [[[255, 255, 255]]] #high_mask_permutations
-    args["threshold_value"] = [245]
+    args["sharpen_sigma"] = [1.25]
+    args["mask_low"] = [[[12, 120, 110],  [0, 0, 0]]] #low_mask_permutations
+    args["mask_high"] = [[[32, 255, 255], [255, 255, 255]]] #high_mask_permutations
     args["opening_kernel"] = [(1, 2)]
-    args["canny_lower"] = [50, 75, 100]
-    args["canny_upper"] = [180, 200, 220, 255]
+    args["canny_lower"] = [75]
+    args["canny_upper"] = [245]
     args["image_dim"] = [(150, 50)]
-    args["memoize_bounding_boxes"] = [True]
-    args["contour_ratio_epsilon"] = [1, 1.15, 1.25, 1.35, 1.5]
-    args["contour_approximation_epsilon"] = [0.015, 0.02, 0.025, 0.03, 0.035]
-    args["contour_perimeter"] = [175, 200, 225, 250]
+    args["memoize_bounding_boxes"] = [False]
+    args["contour_ratio_epsilon"] = [1.15]
+    args["contour_approximation_epsilon"] = [0.035]
+    args["contour_perimeter"] = [175]
     args["center_offset_lookup"] = [(100, 30)]
     return args
 
