@@ -122,20 +122,26 @@ def diff_score_xor(test, ref):
     return res / len(ref)
 
 def recognize_character(char, n, hyper_args, debug, quick_check):
+    # Get all contours of segment
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    # If none - empty cut
     if len(cnts) == 0: return ''
+    # Get largest contour
     cnt = sorted(cnts, key = cv2.contourArea, reverse=True)[0]
 
+    # Find bounding box for contour
     x, y, w, h = cv2.boundingRect(cnt)
     # If small enough, consider as a dash
     if w < hyper_args.dash_size and h < hyper_args.dash_size: return ('-', 1000)
 
+    # Crop char with bounding box
     cut_char = char[y : y + h, x : x + w]
     # Calculate character footprint
     footprint = cut_char.shape[0] * cut_char.shape[1] / (char.shape[0] * char.shape[1])
     # If too low or too high -> noise
     if footprint < hyper_args.character_footprint_low or footprint > hyper_args.character_footprint_high: return ('', 9999)
 
+    # Resize and threshold char for standartization
     cut_char = cv2.threshold(cv2.resize(cut_char, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
     # If predominantly vertical, consider as 1 or I
     if max(w, h) / min(w, h) > hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'))
@@ -145,39 +151,56 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
     #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
 
     scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
-    # Check if the ratio of the two scores is close to 1 (if so return empty)
+    # If quick-checking, don't bother for close characters, but only if it's a char at all
     if quick_check:
+        # Get best
         l = sorted(scores.items(), key=lambda x: x[1])[0]
         if l[1] < hyper_args.char_dist_threshold: return l
         return ('', 9999)
     else:
+        # Get two best
         low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-        if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])]
-            and low2[1] / low1[1] < 1.1):
+        # If false pair, perform extra check
+        if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])] and low2[1] / low1[1] < 1.1):
             return extra_check(cut_char, (low1[0], low2[0]))
+        # If too distant to any character, consider as noise
         if low1[1] < hyper_args.char_dist_threshold: return low1
         return ('', 9999)
 
 # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
 def extra_check(char, chars):
     if set(chars) == set(['1','I']):
-        return chars[0], diff_score_xor(char, reference_images[chars[0]])
+        # Limit choice to 1 and I, pick lower distance diff
+        number = ('1', diff_score_xor(char, reference_images['1']))
+        letter = ('I', diff_score_xor(char, reference_images['I']))
+        return min(number, letter, key=lambda t: t[1])
 
+    # Get edged img of char and do hough transform on it
     edged = cv2.Canny(char, 50, 150)
+    # Finest pixel and angle resolution, all lines (threshold = 1)
     lines = cv2.HoughLines(edged, 1, np.pi / 180, 1, None, 0, 0)
-    lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
     
     if set(chars) == set(['D', '0']):
+        # Look for dominant vertical line (theta = 0) close to origin (rho/x <= 18)
+        lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
         if len(lines) == 0: return ('0', diff_score_xor(char, reference_images['0']))
         if lines[0][0][0] <= 18: return ('D', diff_score_xor(char, reference_images['D']))
     elif set(chars) == set(['B', '8']):
+        # Did not work quite as well for this pair, skip over
         pass
     elif set(chars) == set(['2', 'Z']):
+        # Look for dominant horizontal line (theta = pi/2) close to origin (rho/y <= 15)
+        lines = list(filter(lambda l: l[0][1] == np.pi / 2, lines[:min(len(lines), 10)]))
+        if len(lines) == 0: return ('2', diff_score_xor(char, reference_images['2']))
+        if lines[0][0][0] <= 15: return ('Z', diff_score_xor(char, reference_images['Z']))
         pass
     elif set(chars) == set(['5', 'S']):
+        # Look for dominant vertical line (theta = 0) close to origin (rho/x <= 18)
+        lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
         if len(lines) == 0: return ('S', diff_score_xor(char, reference_images['S']))
         if lines[0][0][0] <= 18: return ('5', diff_score_xor(char, reference_images['5']))
     
+    # If choice is not definitive through hough transform, just pick more likely choice
     return chars[0], diff_score_xor(char, reference_images[chars[0]])
 
 # Function to segment the plate into individual characters
