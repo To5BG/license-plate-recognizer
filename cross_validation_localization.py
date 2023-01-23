@@ -45,11 +45,9 @@ def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
     best_hyper_arg = None
     best_train = 0
 
-    data = data[:1120]
-    labels = labels[:1120]
+    data = data[1731:]
+    labels = labels[1731:]
     x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
-    x_train = x_train[:50]
-    y_train = y_train[:50]
     runs = 0
     for v in product(*hyper_args.values()):
         print(runs)
@@ -60,7 +58,7 @@ def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
             parser.add_argument('--' + str(k), type=type(v), default=v)
         hyper_arg = parser.parse_args()
         _, overlap = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
-        if overlap > best_train: #natural selection of results that improve
+        if overlap > best_train or best_train == 0: #natural selection of results that improve
             best_train = overlap
             best_hyper_arg = hyper_arg
 

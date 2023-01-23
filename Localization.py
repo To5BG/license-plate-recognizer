@@ -120,9 +120,9 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             # Approximate polygon, given a contour, with some epsilon for roughness
             approx = cv2.approxPolyDP(cnt, hyper_args.contour_approximation_epsilon * peri, True)
             rect = cv2.minAreaRect(cnt)
+            if rect[1][0] == 0 or rect[1][1] == 0: continue
             # OpenCV may at times consider 90 deg rotation with flipped width/height equivalent to regular poly
-            ratio = rect[1][0] / rect[1][1] if rect[2] <= 45 else rect[1][1] / rect[1][
-                0]  # max(rect[1][0], rect[1][1]) / min(rect[1][0], rect[1][1])
+            ratio = rect[1][0] / rect[1][1] if rect[2] <= 45 else rect[1][1] / rect[1][0]  # max(rect[1][0], rect[1][1]) / min(rect[1][0], rect[1][1])
             # Checked conditions for a license plate:
             # - Check that contour approximates a quadilateral
             # - Check that ratio of said quad is some epsilon away from 4.5, the most common license plate ratio

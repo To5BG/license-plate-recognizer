@@ -36,7 +36,7 @@ def train_and_test_model_recognition(x, y, hyper_args):
             parser.add_argument('--' + str(k), type=type(v), default=v)
         hyper_arg = parser.parse_args()
         matches_plates, _, _ = evaluate_plates(x_train, y_train, hyper_arg)
-        if matches_plates > best_train:  # natural selection of results that improve
+        if matches_plates > best_train or best_train == 0:  # natural selection of results that improve
             best_train = matches_plates
             best_hyper_arg = hyper_arg
 
