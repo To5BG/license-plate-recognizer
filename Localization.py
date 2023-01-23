@@ -33,7 +33,7 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
     # Guard clause for first frame
     if last_image is None: last_image = image
     # If new frame (not similar to last one), set new last_image and reset color range
-    if cv2.matchTemplate(image, last_image, 1) > 0.2:
+    if cv2.matchTemplate(image, last_image, 1) > 0.2: #
         last_image = image
         desired_color_range = None
         last_boxes = list()

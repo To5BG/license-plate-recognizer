@@ -11,10 +11,10 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi')
     parser.add_argument('--file_path_recognition', type=str, default='./dataset/localizedLicensePlates')
-    parser.add_argument('--output_path', type=str, default='./Output.csv')
+    parser.add_argument('--output_path', type=str, default='Output.csv')
     parser.add_argument('--sample_frequency', type=int, default=12)
-    parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_localization')
+    parser.add_argument('--save_files', type=bool, default=True)
+    parser.add_argument('--stage', type=str, default='test')
     args = parser.parse_args()
     return args
 
@@ -41,7 +41,9 @@ def get_localization_hyper_args():
     parser.add_argument('--contour_approximation_epsilon', type=float, default=0.03)
     parser.add_argument('--contour_perimeter', type=int, default=200)
     parser.add_argument('--center_offset_lookup', type=tuple, default=(100, 30))
-    
+    parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi') # default so that implementation works
+    parser.add_argument('--output_path', type=str, default='Output.csv')# default so that implementation works
+
 
     args = parser.parse_args()
     return args
@@ -74,6 +76,8 @@ def get_recognition_hyper_args():
     parser.add_argument('--character_footprint_high', type=float, default=0.9)
     parser.add_argument('--char_dist_threshold', type=int, default=2350)
     parser.add_argument('--plate_dist_threshold', type=int, default=21500)
+    parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi') #default so that implementation works
+    parser.add_argument('--output_path', type=str, default='Output.csv') #default so that implementation works
 
     args = parser.parse_args()
     return args
