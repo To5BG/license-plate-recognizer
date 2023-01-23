@@ -22,11 +22,10 @@ def cross_validate(file_path, hyper_args):
 
 def train_and_test_model_recognition(x, y, hyper_args):
     best_hyper_arg = None
-    test_X = None
-    test_Y = None
     best_train = 0
     best_output = None
 
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True)
     runs = 0
     for v in product(*hyper_args.values()):
         print(runs)
@@ -36,15 +35,12 @@ def train_and_test_model_recognition(x, y, hyper_args):
         for k, v in hyper_arg_dict.items():
             parser.add_argument('--' + str(k), type=type(v), default=v)
         hyper_arg = parser.parse_args()
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True)
         matches_plates, _, _ = evaluate_plates(x_train, y_train, hyper_arg)
         if matches_plates > best_train:  # natural selection of results that improve
             best_train = matches_plates
             best_hyper_arg = hyper_arg
-            test_X = x_test
-            test_Y = y_test
 
-    best_matches_plates, best_matches_chars, best_output = evaluate_plates(test_X, test_Y, best_hyper_arg)
+    best_matches_plates, best_matches_chars, best_output = evaluate_plates(x_test, y_test, best_hyper_arg)
 
     print("Best Percentage of License Plates:", best_matches_plates)
     print("Best Percentage of Characters:", best_matches_chars)

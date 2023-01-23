@@ -43,25 +43,28 @@ def cross_validate(file_path, hyper_args, rec_hyper_args):
 
 def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
     best_hyper_arg = None
-    test_x = None
-    test_y = None
     best_train = 0
 
+    data = data[:1120]
+    labels = labels[:1120]
+    x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
+    x_train = x_train[:50]
+    y_train = y_train[:50]
+    runs = 0
     for v in product(*hyper_args.values()):
+        print(runs)
+        runs += 1
         hyper_arg_dict = dict(zip(hyper_args, v))
         parser = argparse.ArgumentParser()
         for k, v in hyper_arg_dict.items():
             parser.add_argument('--' + str(k), type=type(v), default=v)
         hyper_arg = parser.parse_args()
-        x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
         _, overlap = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
         if overlap > best_train: #natural selection of results that improve
             best_train = overlap
             best_hyper_arg = hyper_arg
-            test_x = x_test
-            test_y = y_test
 
-    best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg, rec_hyper_args)
+    best_test = evaluate_bounding_boxes(x_test, y_test, best_hyper_arg, rec_hyper_args)
 
     print("Best match: ")
     print("Train set: " + str(best_train))
@@ -216,8 +219,8 @@ def evaluate_bounding_boxes(x, y, hyper_args, rec_hyper_args):
     successScore /= total
     overlapScore /= total
 
-    print("Hyper parameters:" + str(hyper_args))
-    print("Score (successful matches):" + str(successScore * 100.0) + "%")
-    print("Score (total overlap):" + str(overlapScore * 100.0) + "%")
+    #print("Hyper parameters:" + str(hyper_args))
+    #print("Score (successful matches):" + str(successScore * 100.0) + "%")
+    #print("Score (total overlap):" + str(overlapScore * 100.0) + "%")
 
     return (successScore * 100.0, overlapScore * 100.0)
