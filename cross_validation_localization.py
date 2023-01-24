@@ -48,6 +48,8 @@ def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
     data = data[1731:]
     labels = labels[1731:]
     x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
+    x_train = x_train[:50]
+    y_train = y_train[:50]
     runs = 0
     for v in product(*hyper_args.values()):
         print(runs)

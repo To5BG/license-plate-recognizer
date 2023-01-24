@@ -12,14 +12,14 @@ def cross_validation(file_path, test_stage, rec_quick_args=None):
 def get_localization_hyper_args():
     args = {}
     low_mask_permutations = []
-    for h in range(12, 15):
-        for s in range(110, 131):
-            for v in range(100, 121):
+    for h in range(0, 50, 10):
+        for s in range(0, 50, 10):
+            for v in range(0, 50, 10):
                 low_mask_permutations.append([[h, s, v]])
     high_mask_permutations = []
-    for h in range(31, 34):
-        for s in [255]:
-            for v in [255]:
+    for h in range(155, 165):
+        for s in range(241, 256):
+            for v in range(225, 235):
                 high_mask_permutations.append([[h, s, v]])
     args["contrast_stretch"] = [0.7]
     args["gaussian_blur_k"] = [7]
@@ -29,13 +29,13 @@ def get_localization_hyper_args():
     args["bifilter_sigma2"] = [15]
     args["sharpen_k"] = [11]
     args["sharpen_sigma"] = [1.25]
-    args["mask_low"] = [[[12, 120, 110],  [0, 0, 0]]] #low_mask_permutations
-    args["mask_high"] = [[[32, 255, 255], [255, 255, 255]]] #high_mask_permutations
+    args["mask_low"] = [[[0, 0, 0]]]#low_mask_permutations
+    args["mask_high"] = high_mask_permutations
     args["opening_kernel"] = [(1, 2)]
     args["canny_lower"] = [75]
     args["canny_upper"] = [245]
     args["image_dim"] = [(150, 50)]
-    args["memoize_bounding_boxes"] = [False]
+    args["memoize_bounding_boxes"] = [True]
     args["contour_ratio_epsilon"] = [1.15]
     args["contour_approximation_epsilon"] = [0.035]
     args["contour_perimeter"] = [175]
