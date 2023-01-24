@@ -107,7 +107,6 @@ def majorityVote(cache, pic, data, frame, fc, fps, cwd):
             # print(lastGuess)
             # print(cv2.matchTemplate(pic, frame, 1))
             if l_distance <= 2 and l_distance > 0 or totalVotes <= 12:
-                lastGuess = maj
                 return cache, data
         if maj is not None and maj not in data.keys():
             print("---------------")
