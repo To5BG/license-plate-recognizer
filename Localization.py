@@ -33,7 +33,11 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
     # Guard clause for first frame
     if last_image is None: last_image = image
     # If new frame (not similar to last one), set new last_image and reset color range
-    if cv2.matchTemplate(image, last_image, 1) > 0.2: #
+    # Match template moves the image pattern through the template to find the best match of the image inside the template
+    # In the case of the two images having the same shape, as here, the result is simply a normalized euclidean distance between the two images
+    # Hence a separate implementation was deemed unecessary
+    # https://docs.opencv.org/4.x/df/dfb/group__imgproc__object.html#ga586ebfb0a7fb604b35a23d85391329be
+    if cv2.matchTemplate(image, last_image, 1) > 0.2:
         last_image = image
         desired_color_range = None
         last_boxes = list()
@@ -116,9 +120,9 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             # Approximate polygon, given a contour, with some epsilon for roughness
             approx = cv2.approxPolyDP(cnt, hyper_args.contour_approximation_epsilon * peri, True)
             rect = cv2.minAreaRect(cnt)
+            if rect[1][0] == 0 or rect[1][1] == 0: continue
             # OpenCV may at times consider 90 deg rotation with flipped width/height equivalent to regular poly
-            ratio = rect[1][0] / rect[1][1] if rect[2] <= 45 else rect[1][1] / rect[1][
-                0]  # max(rect[1][0], rect[1][1]) / min(rect[1][0], rect[1][1])
+            ratio = rect[1][0] / rect[1][1] if rect[2] <= 45 else rect[1][1] / rect[1][0]  # max(rect[1][0], rect[1][1]) / min(rect[1][0], rect[1][1])
             # Checked conditions for a license plate:
             # - Check that contour approximates a quadilateral
             # - Check that ratio of said quad is some epsilon away from 4.5, the most common license plate ratio
