@@ -45,7 +45,7 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
 
     # Contrast stretch the image
     img = image.copy()
-    if hyper_args.contrast_stretch != 0:
+    if hyper_args.contrast_stretch != 0.0:
         img = contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
     # Blur to remove noise
     img = cv2.GaussianBlur(img, (hyper_args.gaussian_blur_k, hyper_args.gaussian_blur_k),
@@ -156,7 +156,8 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
                 centers.append(rect[0])
                 box = cv2.boxPoints(rect)
                 boxes.append(np.array(box).astype(np.int32))
-                desired_color_range = (ml, mh)
+                if ml != hyper_args.mask_low[-1] and mh != hyper_args.mask_high[-1]:
+                    desired_color_range = (ml, mh)
                 plate_imgs.append(resized_img)
 
         if len(boxes) != 0: break
@@ -178,7 +179,9 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             last_boxes = boxes
             last_plate_imgs = plate_imgs
 
-    return plate_imgs, boxes
+    isDutch = desired_color_range == ((hyper_args.mask_low[0], hyper_args.mask_high[0])
+        or desired_color_range == (hyper_args.mask_low[1], hyper_args.mask_high[1]))
+    return plate_imgs, boxes, isDutch
 
 
 # Approved from Lab_1_Color_And_Histograms

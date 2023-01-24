@@ -55,8 +55,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
             if saveFiles:
                 cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
             # Localize and recognize plates
-            plates, _ = Localization.plate_detection(frame, localization_hyper_args, recognition_hyper_args)
-            plate_nums = Recognize.segment_and_recognize(plates, recognition_hyper_args)
+            plates, _, isDutch = Localization.plate_detection(frame, localization_hyper_args, recognition_hyper_args)
+            plate_nums = Recognize.segment_and_recognize(plates, recognition_hyper_args, isDutch=isDutch)
 
             # Majority voting -> have a cache and save only the most common license plate in the output.csv
             # Triggered if the scene is different

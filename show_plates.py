@@ -130,7 +130,7 @@ while(cap.isOpened()):
     skipFrames -= 1
     continue
 
-  detections, borders = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
+  detections, borders, isDutch = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
   # Add predicted box
   bbframe = frame.copy()
   for border in borders:
@@ -148,7 +148,7 @@ while(cap.isOpened()):
 
   # Display recognition results
   if get_args().stage == 1:
-    print(segment_and_recognize(detections, get_recognition_hyper_args(), debug=True))
+    print(segment_and_recognize(detections, get_recognition_hyper_args(), debug=True, isDutch=isDutch))
 
   a = cv2.waitKey(playbackSpeed)
   # Press P on keyboard to pause

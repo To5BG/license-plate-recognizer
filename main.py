@@ -19,7 +19,7 @@ def get_args():
 
 def get_localization_hyper_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.7)
+    parser.add_argument('--contrast_stretch', type=float, default=0.0)
     parser.add_argument('--gaussian_blur_k', type=int, default=7)
     parser.add_argument('--gaussian_blur_sigma', type=float, default=1)
     parser.add_argument('--bifilter_k', type=int, default=11)
@@ -27,8 +27,8 @@ def get_localization_hyper_args():
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.25)
-    parser.add_argument('--mask_low', type=object, default=[[12, 120, 110], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
-    parser.add_argument('--mask_high', type=object, default=[[32, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [165, 252, 232]])
+    parser.add_argument('--mask_low', type=object, default=[[12, 120, 110], [10, 80, 80], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
+    parser.add_argument('--mask_high', type=object, default=[[32, 255, 255], [32, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [165, 252, 232]])
     parser.add_argument('--opening_kernel', type=tuple, default=(1, 2))
     parser.add_argument('--canny_lower', type=int, default=75)
     parser.add_argument('--canny_upper', type=int, default=245)
