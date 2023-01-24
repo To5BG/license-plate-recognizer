@@ -1,13 +1,11 @@
 import cv2
 import numpy as np
 import os
+import re
 
 import Localization
 
-sift = None
 reference_images = {}
-ref_sift_desc = {}
-bf = None
 
 """
 In this file, you will define your own segment_and_recognize function.
@@ -27,21 +25,15 @@ Hints:
 """
 def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False):
     recognized_plates = []
-    global sift, bf
-    # If not-instantiated, create new SIFT feature extractor and load reference database
-    if sift is None:
-        sift = cv2.SIFT_create(1)
+    if len(reference_images) == 0:
         create_database("dataset/SameSizeLetters/")
         create_database("dataset/SameSizeNumbers/")
-        bf = cv2.BFMatcher.create()
     for i, plate_img in enumerate(plate_imgs):
         recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug, quick_check))
     return recognized_plates
 
 # Go through all files in provided filepath, and images to a in-memory dictionary
-# this can be optimized later to contain the sifts directly but it is fine for now
 def create_database(path):
-    global reference_images, sift, ref_sift_desc
     for f in os.listdir(path):
         # Look only for relevant image formats
         if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.bmp'):
@@ -49,37 +41,44 @@ def create_database(path):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # Provided train letters contain a lot of black spaces, crop that away
             img = img[:, :np.max(np.where(img != 0)[1] % img.shape[1]) + 1]
-            # Resize to modulo 16 size for SIFT
-            img = cv2.resize(img, (64, 80))
-            # Store ref image and sift descriptor in global lookup dictionaries
-            reference_images[f.split('.')[0]] = img
-            ref_sift_desc[f.split('.')[0]] = sift_descriptor(img)
+            img = cv2.threshold(cv2.resize(img, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+            # Store ref image in global lookup dictionaries
+            letter = re.split("_|\.", f)[0]
+            if letter not in reference_images.keys():
+                reference_images[letter] = []
+            reference_images[letter].append(img)
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
 def recognize_plate(image, n, hyper_args, debug, quick_check):
-    # preprocessing steps - sharpen image and improve contour results
-    img = image.copy()
-    if hyper_args.contrast_stretch != 0:
-        img = Localization.contrastImprovementContrastStretching(img, hyper_args.contrast_stretch, 0, 255)
-	# Blur to remove noise
-    img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
-	# Sharpen edges
-    img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Threshold image
-    img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)[1]
-    # Invert threshold if there are more white than black pixels
-    if len(np.where(img[10:(len(img) - 10)] == 255)[0]) > len(np.where(img[10:(len(img) - 10)] == 0)[0]):
-        img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
+    # preprocessing steps - sharpen image and improve contour results
+    overlay_img = np.zeros((image.shape[0], image.shape[1]), np.uint8)
+    overlay_img[:] = 255
+    # Overlay several versions of image with different contrast stretches
+    for c in hyper_args.contrast_stretch:
+        img = image.copy()
+        img = Localization.contrastImprovementContrastStretching(img, c, 0, 255)
+        for i in range(hyper_args.sharpen_iter):
+            # Blur to remove noise
+            img = cv2.bilateralFilter(img, hyper_args.bifilter_k, hyper_args.bifilter_sigma1, hyper_args.bifilter_sigma2)
+            # Sharpen edges
+            img = cv2.filter2D(img, -1, Localization.sharpKernel(hyper_args.sharpen_k, hyper_args.sharpen_sigma))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Threshold image
+        img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)[1]
+        # Invert threshold if there are more white than black pixels
+        if len(np.where(img[10:(len(img) - 10)] == 255)[0]) > len(np.where(img[10:(len(img) - 10)] == 0)[0]):
+            img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
+        overlay_img = cv2.bitwise_and(overlay_img, img)
+    img = overlay_img
 
     # Apply morphological operations
     # Reduce upper and lower borders with hitmiss morph op
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_1))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_2))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_3))
-    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, hyper_args.hitmiss_kernel_4))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_1)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_2)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_3)))
+    img = cv2.absdiff(img, cv2.morphologyEx(img, cv2.MORPH_HITMISS, np.ones(hyper_args.hitmiss_kernel_4)))
     # Reduce noise with opening morph op, ellipse kernel
     opening_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, hyper_args.opening_kernel_size)
     img = cv2.morphologyEx(img, cv2.MORPH_OPEN, opening_kernel, iterations=1)
@@ -93,8 +92,7 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     potential_idx = np.where(rows <= hyper_args.horizontal_border_low_threshold)[0]
     potential_idx = np.append(potential_idx, 0)
     potential_idx = np.append(potential_idx, img.shape[0])
-    img = img[(max(3, np.max(potential_idx[potential_idx <= 12])) - 3)
-        :(min(len(img) - 4, np.min(potential_idx[potential_idx >= 38])) + 3)]
+    img = img[np.max(potential_idx[potential_idx <= 12]):np.min(potential_idx[potential_idx >= 38])]
 
     # If debug is enabled, show thresholded, morphed, and filtered image
     if debug:
@@ -106,58 +104,104 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     if len(characterImages) == 0: return 'F' if quick_check else res
     tdist = 0
     for i, char_img in enumerate(characterImages):
-        char, dist = recognize_character(char_img, i, debug, quick_check)
+        char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check)
+        if char == '-' and (res == "" or res.endswith('-')): continue
         tdist += dist
         res += str(char)
-    print(res, tdist, quick_check)
-    if quick_check: return 'T' if len(res) > 4 and tdist < 20000 else 'F'
-    return res
-
-# Using cv2's SIFT implementation directly - approved from Lab_6_Find_Contours_SIFT
-def sift_descriptor(img):
-    global sift
-    _, desc = sift.detectAndCompute(img, None)
-    # If no features captured, return empty descriptor
-    if desc is None or len(desc) == 0: return []
-    # Else average over all keypoints
-    return np.average(desc, axis=0)
- 
-def diff_score_sift(test, ref):
-    global bf
-    matches = bf.knnMatch(test, ref, k=1)
-    return np.sum(list(map(lambda x:x[0].distance, matches)))
+    if res.endswith('-'):
+        tdist -= 1000
+        res = res[:-1]
+    if quick_check: return 'T' if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else 'F'
+    else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
 
 def diff_score_xor(test, ref):
-    # return the number of non-zero pixels after xoring
-    return len(np.where(cv2.bitwise_xor(test, ref) != 0)[0])
+    res = 0
+    for r in ref:
+        # return the number of non-zero pixels after xoring
+        res += len(np.where(cv2.bitwise_xor(test, r) != 0)[0])
+    return res / len(ref)
 
-def recognize_character(char, n, debug, quick_check):
-    global ref_sift_desc
+def recognize_character(char, n, hyper_args, debug, quick_check):
+    # Get all contours of segment
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    # If none - empty cut
     if len(cnts) == 0: return ''
+    # Get largest contour
     cnt = sorted(cnts, key = cv2.contourArea, reverse=True)[0]
 
+    # Find bounding box for contour
     x, y, w, h = cv2.boundingRect(cnt)
-    char = char[y : y + h, x : x + w]
-    char = cv2.resize(char, (64, 80))
-    if debug:
-        cv2.imshow("Character#%d" % n, char)
+    # If small enough, consider as a dash
+    if w < hyper_args.dash_size and h < hyper_args.dash_size: return ('-', 1000)
 
-    #char_sift_desc = sift_descriptor(char)
-    #print(char_sift_desc)
-    #if len(char_sift_desc) == 0: return ''
-    #scores = {k : diff_score_sift(char_sift_desc, ref) for k, ref in ref_sift_desc.items()}
-    scores = {k : diff_score_xor(char, ref) for k, ref in reference_images.items()}
-    # Check if the ratio of the two scores is close to 1 (if so return empty)
+    # Crop char with bounding box
+    cut_char = char[y : y + h, x : x + w]
+    # Calculate character footprint
+    footprint = cut_char.shape[0] * cut_char.shape[1] / (char.shape[0] * char.shape[1])
+    # If too low or too high -> noise
+    if footprint < hyper_args.character_footprint_low or footprint > hyper_args.character_footprint_high: return ('', 9999)
+
+    # Resize and threshold char for standartization
+    cut_char = cv2.threshold(cv2.resize(cut_char, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+    # If predominantly vertical, consider as 1 or I
+    if max(w, h) / min(w, h) > hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'))
+    
+    if debug:
+        cv2.imshow("Character#%d" % n, cut_char)
+    #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
+
+    scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
+    # If quick-checking, don't bother for close characters, but only if it's a char at all
     if quick_check:
+        # Get best
         l = sorted(scores.items(), key=lambda x: x[1])[0]
-        if l[1] < 2500: return l
+        if l[1] < hyper_args.char_dist_threshold: return l
         return ('', 9999)
     else:
+        # Get two best
         low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
-        # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), maybe (2, Z))
-        if low1[1] < 2500: return low1 #or (low1[1] / low2[1] - 1) > 0.1: return low1
+        # If false pair, perform extra check
+        if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])] and low2[1] / low1[1] < 1.1):
+            return extra_check(cut_char, (low1[0], low2[0]))
+        # If too distant to any character, consider as noise
+        if low1[1] < hyper_args.char_dist_threshold: return low1
         return ('', 9999)
+
+# DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
+def extra_check(char, chars):
+    if set(chars) == set(['1','I']):
+        # Limit choice to 1 and I, pick lower distance diff
+        number = ('1', diff_score_xor(char, reference_images['1']))
+        letter = ('I', diff_score_xor(char, reference_images['I']))
+        return min(number, letter, key=lambda t: t[1])
+
+    # Get edged img of char and do hough transform on it
+    edged = cv2.Canny(char, 50, 150)
+    # Finest pixel and angle resolution, all lines (threshold = 1)
+    lines = cv2.HoughLines(edged, 1, np.pi / 180, 1, None, 0, 0)
+    
+    if set(chars) == set(['D', '0']):
+        # Look for dominant vertical line (theta = 0) close to origin (rho/x <= 18)
+        lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
+        if len(lines) == 0: return ('0', diff_score_xor(char, reference_images['0']))
+        if lines[0][0][0] <= 18: return ('D', diff_score_xor(char, reference_images['D']))
+    elif set(chars) == set(['B', '8']):
+        # Did not work quite as well for this pair, skip over
+        pass
+    elif set(chars) == set(['2', 'Z']):
+        # Look for dominant horizontal line (theta = pi/2) close to origin (rho/y <= 15)
+        lines = list(filter(lambda l: l[0][1] == np.pi / 2, lines[:min(len(lines), 10)]))
+        if len(lines) == 0: return ('2', diff_score_xor(char, reference_images['2']))
+        if lines[0][0][0] <= 15: return ('Z', diff_score_xor(char, reference_images['Z']))
+        pass
+    elif set(chars) == set(['5', 'S']):
+        # Look for dominant vertical line (theta = 0) close to origin (rho/x <= 18)
+        lines = list(filter(lambda l: l[0][1] == 0, lines[:min(len(lines), 10)]))
+        if len(lines) == 0: return ('S', diff_score_xor(char, reference_images['S']))
+        if lines[0][0][0] <= 18: return ('5', diff_score_xor(char, reference_images['5']))
+    
+    # If choice is not definitive through hough transform, just pick more likely choice
+    return chars[0], diff_score_xor(char, reference_images[chars[0]])
 
 # Function to segment the plate into individual characters
 def segment_plate(image, n, hyper_args, debug):
@@ -209,10 +253,19 @@ def segment_plate(image, n, hyper_args, debug):
         curr = border_idx[b]
         # Crop image between two borders (last and curr)
         curr_img = image[:, last:(curr + 1)]
-        # For cropped image, get white pixels per row to determine if a character is captured
+        # For cropped image, get white pixels per row
         rows = np.array([len(np.where(curr_img[i] == 255)[0]) for i in range(0, image.shape[0])])
-        # If not enough rows have sufficient count of white pixels - consider fluke/dash -> skip
-        if len(np.where(rows < hyper_args.horizontal_char_low_threshold)[0]) > hyper_args.char_segment_threshold: continue
+        # Threshold rows to determine if a character is captured
+        thresholded_rows = np.where(rows < hyper_args.horizontal_char_low_threshold)[0]
+        actual_white_pixels = set(range(image.shape[0])).difference(set(thresholded_rows))
+        dash_white_pixels = set(range(image.shape[0] // 2 - hyper_args.dash_range, image.shape[0] // 2 + hyper_args.dash_range))
+        if (
+            # If not enough rows have sufficient count of white pixels - consider fluke -> skip
+            len(thresholded_rows) > hyper_args.char_segment_threshold and
+            # Unless it is a dash -> if length of symmetric difference over threshold
+            len(actual_white_pixels.difference(dash_white_pixels).union(dash_white_pixels.difference(actual_white_pixels))) > hyper_args.dash_threshold
+            #len(set(range(image.shape[0])).difference(set(thresholded_rows)).intersection(range(image.shape[0] // 2 - 5, image.shape[0] // 2 + 5))) > 3
+            ): continue
         images.append(curr_img)
         last = curr
     return images

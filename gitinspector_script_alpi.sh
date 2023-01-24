@@ -1,0 +1,1 @@
+py -2 ../../../../IdeaProjects/gitinspector-master/gitinspector.py ./ -x author:Taico --format=html --grading > report.html

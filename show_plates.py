@@ -4,11 +4,11 @@ from Recognize import segment_and_recognize
 from main import get_localization_hyper_args, get_recognition_hyper_args
 import cv2 
 import numpy as np
-import pandas as pd
+import os
 
 def get_args():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie I/Video7_2.avi')
+    #parser.add_argument('--file_path', type=str, default='dataset/TrainingSet/Categorie I/Video171_2.avi')
     parser.add_argument('--file_path', type=str, default='dataset/dummytestvideo.avi')
     parser.add_argument('--stage', type=int, default=1)
     args = parser.parse_args()
@@ -24,6 +24,7 @@ def captureBoxEvent(event, x, y, flags, param):
       # Flatten point tuples for csv entry
       e = []
       [e.extend([t[0], t[1]]) for t in mbp]
+      frame_count -= 1
       e.extend([frame_count, frame_count / fps])
       with open('BoundingBoxGroundTruth.csv', 'r+') as f:
         df = f.readlines()
@@ -45,6 +46,7 @@ def captureBoxEvent(event, x, y, flags, param):
         # Otherwise insert a new entry for this frame
         else:
           df.insert(idx, ",".join(map(str, e)) + "\n")
+        frame_count += 1
         # Write new df
         f.seek(0)
         f.writelines(df)
@@ -55,15 +57,25 @@ def captureBoxEvent(event, x, y, flags, param):
 
 # Click event for cropping plates for recognition crossval
 def cropPlateEvent(event, x, y, flags, param):
-  global mcp
+  global mcp, frame, frame_count, cwd
   if event == cv2.EVENT_LBUTTONUP:
     # If 4 points are accrued, add new box entry
     if len(mcp) == 4:
       # Save plate as file
+      box = cv2.minAreaRect(np.float32(mcp))
+      rot = box[2] if box[2] < 45 else box[2] - 90
+      # Rotate image to make license plate x-axis aligned
+      rot_img = cv2.warpAffine(frame, cv2.getRotationMatrix2D(box[0], rot, 1),
+                                (frame.shape[1], frame.shape[0]))
+      # Crop and resize plate
+      rot_img = cv2.getRectSubPix(rot_img, (int(box[1][0]), int(box[1][1])) if box[2] < 45 else (
+      int(box[1][1]), int(box[1][0])), tuple(map(int, box[0])))
+      resized_img = cv2.resize(rot_img, get_localization_hyper_args().image_dim)
+      cv2.imwrite(os.path.join(cwd, "dataset", "localizedLicensePlates", "frame%drecdata.jpg" % frame_count), resized_img)
       mcp = []
   elif event == cv2.EVENT_LBUTTONDOWN:
     # Add point to entry
-    mcp.append((x, y))
+    mcp.append(np.float32([x, y]))
 
 
 # Create a VideoCapture object and read from input file
@@ -93,8 +105,15 @@ skipFrames = 0
 mbp = []
 # Manual points for rec
 mcp = [] 
+# Frame to be used for cropping in the rec click event
+frame = None
+# Current working dir path
+cwd = os.path.abspath(os.getcwd())
 # Boolean flag for manual framing
 usedCaretForNextFrame = False
+# Set up widnow with default click event
+cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
+cv2.setMouseCallback('Original frame', captureBoxEvent)
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
@@ -111,18 +130,17 @@ while(cap.isOpened()):
     skipFrames -= 1
     continue
 
-  detections, borders = plate_detection(frame, get_localization_hyper_args(), True)
+  detections, borders = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
   # Add predicted box
+  bbframe = frame.copy()
   for border in borders:
-    frame = cv2.polylines(frame, [border], True, (255, 0, 0), 3)
+    bbframe = cv2.polylines(bbframe, [border], True, (255, 0, 0), 3)
   # Add ground truth box, new var for easier onclick event handling
   for points in pointarr:
-    frame = cv2.polylines(frame, [points], True, (0, 255, 0), 3)
+    bbframe = cv2.polylines(bbframe, [points], True, (0, 255, 0), 3)
 
   # Display the original frame with bounding boxes
-  cv2.namedWindow('Original frame', cv2.WINDOW_NORMAL)
-  cv2.setMouseCallback('Original frame', captureBoxEvent)
-  cv2.imshow('Original frame', frame)
+  cv2.imshow('Original frame', bbframe)
   
   # Display cropped plates
   for j, plate in enumerate(detections):

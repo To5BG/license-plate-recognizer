@@ -2,8 +2,13 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import Localization
 import cv2
+import os
+import argparse
+from itertools import product
 
-def cross_validate(file_path, hyper_args):
+cwd = os.path.abspath(os.getcwd())
+
+def cross_validate(file_path, hyper_args, rec_hyper_args):
     images = []
     groundTruthBoxes = open("BoundingBoxGroundTruth.csv", "r").read().split('\n')
     boundingBoxes = []
@@ -34,24 +39,31 @@ def cross_validate(file_path, hyper_args):
         
     cap.release()
     cv2.destroyAllWindows()
-    train_and_test_model(images, boundingBoxes, hyper_args)
+    train_and_test_model(images, boundingBoxes, hyper_args, rec_hyper_args)
 
-def train_and_test_model(data, labels, hyper_args):
-    best_train = (0, 0)
-    best_hyper_arg = []
-    hyper_args = np.array([hyper_args]) #hardcoded solution for now, hyperparameters should be an array in the future
-    test_x = []
-    test_y = []
+def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
+    best_hyper_arg = None
+    best_train = 0
 
-    for hyper_arg in hyper_args:
-        x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=False)
-        res = evaluate_bounding_boxes(x_train, y_train, hyper_arg)
-        if res[0] > best_train[0]: #natural selection of results that improve
-            best_train = res
+    data = data[1731:]
+    labels = labels[1731:]
+    x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
+    runs = 0
+    for v in product(*hyper_args.values()):
+        print(runs)
+        runs += 1
+        hyper_arg_dict = dict(zip(hyper_args, v))
+        parser = argparse.ArgumentParser()
+        for k, v in hyper_arg_dict.items():
+            parser.add_argument('--' + str(k), type=type(v), default=v)
+        hyper_arg = parser.parse_args()
+        _, overlap = evaluate_bounding_boxes(x_train, y_train, hyper_arg, rec_hyper_args)
+        if overlap > best_train or best_train == 0: #natural selection of results that improve
+            best_train = overlap
             best_hyper_arg = hyper_arg
-            test_x = x_test
-            test_y = y_test
-    best_test = evaluate_bounding_boxes(test_x, test_y, best_hyper_arg)
+
+    best_test = evaluate_bounding_boxes(x_test, y_test, best_hyper_arg, rec_hyper_args)
+
     print("Best match: ")
     print("Train set: " + str(best_train))
     print("Test set: " + str(best_test))
@@ -139,7 +151,11 @@ def intersect(box1, box2):
     return sorted(list(coords), key=lambda p: np.arctan2(p[1] - avgy, p[0] - avgx))
 
 
-def evaluate_single_box(model_box, test_box):
+def evaluate_single_box(model_box, test_box, img=None, i=0):
+    if set(test_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]):
+        if set(model_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]): return 1, 1
+        else: return 0, 0
+
     area_model_box = shoelaceArea(model_box)
     area_test_box = shoelaceArea(test_box)
 
@@ -148,17 +164,28 @@ def evaluate_single_box(model_box, test_box):
     area_union = area_model_box + area_test_box - area_intersection
     
     overlap = area_intersection / area_union
+
+    if img is not None:
+        global cwd
+        if not os.path.exists(os.path.join(cwd, "images")):
+            os.makedirs(os.path.join(cwd, "images"))
+        show_img = img.copy()
+        show_img = cv2.polylines(show_img, [np.array([list(ele) for ele in model_box])], True, (255, 0, 0), 3)
+        show_img = cv2.polylines(show_img, [np.array([list(ele) for ele in test_box])], True, (0, 255, 0), 3)
+        show_img = cv2.putText(show_img, str(overlap), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 155), 2, cv2.LINE_AA)
+        cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % i), show_img)
+
     success = 1 if overlap > 0.75 else 0
     return success, overlap
 
 
-def evaluate_bounding_boxes(x, y, hyper_args):
+def evaluate_bounding_boxes(x, y, hyper_args, rec_hyper_args):
     boxes = []
     default = [(0, 0), (0, 0), (0, 0), (0, 0)]
 
-    hyper_args.memoize_bounding_boxes = True
+    hyper_args.memoize_bounding_boxes = False
     for i in range(0, len(x)):
-        res = Localization.plate_detection(x[i], hyper_args)[1]
+        res = Localization.plate_detection(x[i], hyper_args, rec_hyper_args)[1]
         # If resulting detections are more than ground truths -> get only best guesses
         if len(res) > len(y[i]): 
             res = sorted(res, key=lambda b: np.max([evaluate_single_box(list(map(tuple, b)), yb) for yb in y[i]]), reverse=True)[:len(y[i])]
@@ -177,12 +204,12 @@ def evaluate_bounding_boxes(x, y, hyper_args):
         for j in range(0, len(frameboxes)):
             fb = list(map(tuple, frameboxes[j]))
             # ss - success score, os - overlap score
-            ss, os = evaluate_single_box(fb, y[i][j])
-            print('--------------')
-            print(fb)
-            print(y[i][j])
-            print(ss)
-            print(os)
+            ss, os = evaluate_single_box(fb, y[i][j], x[i], i)
+            #print('--------------')
+            #print(fb)
+            #print(y[i][j])
+            #print(ss)
+            #print(os)
             successScore += ss
             overlapScore += os
             total += 1
@@ -190,8 +217,8 @@ def evaluate_bounding_boxes(x, y, hyper_args):
     successScore /= total
     overlapScore /= total
 
-    print("Hyper parameters:" + str(hyper_args))
-    print("Score (successful matches):" + str(successScore * 100.0) + "%")
-    print("Score (total overlap):" + str(overlapScore * 100.0) + "%")
+    #print("Hyper parameters:" + str(hyper_args))
+    #print("Score (successful matches):" + str(successScore * 100.0) + "%")
+    #print("Score (total overlap):" + str(overlapScore * 100.0) + "%")
 
     return (successScore * 100.0, overlapScore * 100.0)
