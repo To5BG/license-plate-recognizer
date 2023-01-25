@@ -1,6 +1,6 @@
 #!/bin/bash
 
-T=$(find . -type f -name "*test*" \( -not -path "*git*" \) -and \( -not -path "*venv*" \) -and \( -not -path "*test_cross_validation*" \))
+T=$(find . -type f -name "*test*" \( -not -path "*git*" \) -and \( -not -path "*venv*" \) -and \( -not -path "*pycache*" \) -and \( -not -path "*test_cross_validation*" \))
 
 python3 main.py --file_path $T --output_path ./Output.csv
 
