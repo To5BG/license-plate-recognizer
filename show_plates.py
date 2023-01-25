@@ -118,7 +118,7 @@ cv2.setMouseCallback('Original frame', captureBoxEvent)
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  if not ret: break
+  if not ret or frame_count == 1731: break
   if nextFrame == frame_count:
     pointarr = list()
     while nextFrame == frame_count:
@@ -126,6 +126,7 @@ while(cap.isOpened()):
       nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   frame_count += 1
+  if frame_count < 1560: continue
   if skipFrames != 0: 
     skipFrames -= 1
     continue
