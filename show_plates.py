@@ -118,7 +118,7 @@ cv2.setMouseCallback('Original frame', captureBoxEvent)
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  if not ret: break
+  if not ret or frame_count == 1731: break
   if nextFrame == frame_count:
     pointarr = list()
     while nextFrame == frame_count:
@@ -126,11 +126,12 @@ while(cap.isOpened()):
       nextFrame = -1 if groundTruthBoxes[csvLine + 1] == '' else int(groundTruthBoxes[csvLine + 1].split(',')[-2])
       pointarr.append(np.array([[int(a), int(b)] for a,b in zip(groundTruthBoxes[csvLine].split(',')[0:8:2], groundTruthBoxes[csvLine].split(',')[1:8:2])]))
   frame_count += 1
+  if frame_count < 1560: continue
   if skipFrames != 0: 
     skipFrames -= 1
     continue
 
-  detections, borders = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
+  detections, borders, isDutch = plate_detection(frame, get_localization_hyper_args(), get_recognition_hyper_args(), debug=True)
   # Add predicted box
   bbframe = frame.copy()
   for border in borders:
@@ -148,7 +149,7 @@ while(cap.isOpened()):
 
   # Display recognition results
   if get_args().stage == 1:
-    print(segment_and_recognize(detections, get_recognition_hyper_args(), debug=True))
+    print(segment_and_recognize(detections, get_recognition_hyper_args(), debug=True, isDutch=isDutch))
 
   a = cv2.waitKey(playbackSpeed)
   # Press P on keyboard to pause

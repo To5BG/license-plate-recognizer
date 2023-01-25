@@ -1,7 +1,5 @@
 import argparse
-import os
 import CaptureFrame_Process
-import numpy as np
 import cross_validation
 
 
@@ -9,19 +7,19 @@ import cross_validation
 # for more information of 'argparse' module, see https://docs.python.org/3/library/argparse.html
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file_path', type=str, default='./dataset/trainingsvideo.avi')
+    parser.add_argument('--file_path', type=str, default='./dataset/dummytestvideo.avi')
     parser.add_argument('--file_path_recognition', type=str, default='./dataset/localizedLicensePlates')
     parser.add_argument('--output_path', type=str, default='./Output.csv')
-    parser.add_argument('--sample_frequency', type=int, default=12)
+    parser.add_argument('--sample_frequency', type=int, default=10)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_localization')
+    parser.add_argument('--stage', type=str, default='test')
     args = parser.parse_args()
     return args
 
 
 def get_localization_hyper_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--contrast_stretch', type=float, default=0.7)
+    parser.add_argument('--contrast_stretch', type=float, default=0.0)
     parser.add_argument('--gaussian_blur_k', type=int, default=7)
     parser.add_argument('--gaussian_blur_sigma', type=float, default=1)
     parser.add_argument('--bifilter_k', type=int, default=11)
@@ -29,8 +27,8 @@ def get_localization_hyper_args():
     parser.add_argument('--bifilter_sigma2', type=float, default=15)
     parser.add_argument('--sharpen_k', type=int, default=11)
     parser.add_argument('--sharpen_sigma', type=float, default=1.25)
-    parser.add_argument('--mask_low', type=object, default=[[12, 120, 110], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
-    parser.add_argument('--mask_high', type=object, default=[[32, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [255, 255, 255]])
+    parser.add_argument('--mask_low', type=object, default=[[12, 120, 110], [10, 80, 80], [0, 0, 225], [0, 25, 45], [0, 125, 25], [0, 0, 0]])
+    parser.add_argument('--mask_high', type=object, default=[[32, 255, 255], [32, 255, 255], [180, 8, 255], [180, 90, 75], [180, 150, 100], [165, 252, 232]])
     parser.add_argument('--opening_kernel', type=tuple, default=(1, 2))
     parser.add_argument('--canny_lower', type=int, default=75)
     parser.add_argument('--canny_upper', type=int, default=245)
@@ -40,7 +38,9 @@ def get_localization_hyper_args():
     parser.add_argument('--contour_approximation_epsilon', type=float, default=0.035)
     parser.add_argument('--contour_perimeter', type=int, default=175)
     parser.add_argument('--center_offset_lookup', type=tuple, default=(100, 30))
-    
+    parser.add_argument('--file_path', type=str, default='./dataset/dummytestvideo.avi') # default so that implementation works
+    parser.add_argument('--output_path', type=str, default='./Output.csv') # default so that implementation works
+
 
     args = parser.parse_args()
     return args
@@ -73,6 +73,8 @@ def get_recognition_hyper_args():
     parser.add_argument('--character_footprint_high', type=float, default=0.9)
     parser.add_argument('--char_dist_threshold', type=int, default=2350)
     parser.add_argument('--plate_dist_threshold', type=int, default=21500)
+    parser.add_argument('--file_path', type=str, default='./dataset/dummytestvideo.avi') # default so that implementation works
+    parser.add_argument('--output_path', type=str, default='./Output.csv') # default so that implementation works
 
     args = parser.parse_args()
     return args
@@ -81,7 +83,6 @@ def get_recognition_hyper_args():
 # In this file, you need to pass three arguments into CaptureFrame_Process function.
 if __name__ == '__main__':
     args = get_args()
-    output_path = os.getcwd() + '/Output.csv' if args.output_path is None else args.output_path
     stage = args.stage
     if stage == "train_test_localization":
         cross_validation.cross_validation(args.file_path, 0, get_recognition_hyper_args())
@@ -90,6 +91,6 @@ if __name__ == '__main__':
     elif stage == "test":
         CaptureFrame_Process.CaptureFrame_Process(
             args.file_path, args.sample_frequency,
-            output_path, args.save_files,
+            args.output_path, args.save_files,
             get_localization_hyper_args(),
             get_recognition_hyper_args())

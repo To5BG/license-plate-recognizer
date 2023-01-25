@@ -45,9 +45,11 @@ def train_and_test_model(data, labels, hyper_args, rec_hyper_args):
     best_hyper_arg = None
     best_train = 0
 
-    data = data[1731:]
-    labels = labels[1731:]
+    data = data[1560:1731]
+    labels = labels[1560:1731]
     x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42, shuffle=True)
+    x_train = x_train[:50]
+    y_train = y_train[:50]
     runs = 0
     for v in product(*hyper_args.values()):
         print(runs)
@@ -152,8 +154,8 @@ def intersect(box1, box2):
 
 
 def evaluate_single_box(model_box, test_box, img=None, i=0):
-    if set(test_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]):
-        if set(model_box) == set([(0, 0), (0, 0), (0, 0), (0, 0)]): return 1, 1
+    if set(test_box) == {(0, 0), (0, 0), (0, 0), (0, 0)}: #in the unlikely case the default has a match
+        if set(model_box) == {(0, 0), (0, 0), (0, 0), (0, 0)}: return 1, 1
         else: return 0, 0
 
     area_model_box = shoelaceArea(model_box)
@@ -165,7 +167,7 @@ def evaluate_single_box(model_box, test_box, img=None, i=0):
     
     overlap = area_intersection / area_union
 
-    if img is not None:
+    if img is not None: #visual debug to append intersection percentages for different images directly - not implementation important
         global cwd
         if not os.path.exists(os.path.join(cwd, "images")):
             os.makedirs(os.path.join(cwd, "images"))

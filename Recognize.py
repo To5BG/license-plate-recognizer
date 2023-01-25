@@ -23,13 +23,13 @@ Outputs:(One)
 Hints:
     You may need to define other functions.
 """
-def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False):
+def segment_and_recognize(plate_imgs, hyper_args, debug=False, quick_check=False, isDutch=False):
     recognized_plates = []
     if len(reference_images) == 0:
         create_database("dataset/SameSizeLetters/")
         create_database("dataset/SameSizeNumbers/")
     for i, plate_img in enumerate(plate_imgs):
-        recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug, quick_check))
+        recognized_plates.append(recognize_plate(plate_img, i, hyper_args, debug, quick_check, isDutch))
     return recognized_plates
 
 # Go through all files in provided filepath, and images to a in-memory dictionary
@@ -50,7 +50,7 @@ def create_database(path):
 
 # Converts the license plate into an image suitable for cutting up and xor-ing and outputs
 # the final recognition result
-def recognize_plate(image, n, hyper_args, debug, quick_check):
+def recognize_plate(image, n, hyper_args, debug, quick_check, isDutch):
 
     # preprocessing steps - sharpen image and improve contour results
     overlay_img = np.zeros((image.shape[0], image.shape[1]), np.uint8)
@@ -103,16 +103,32 @@ def recognize_plate(image, n, hyper_args, debug, quick_check):
     res = ""
     if len(characterImages) == 0: return 'F' if quick_check else res
     tdist = 0
+    last_char = None
     for i, char_img in enumerate(characterImages):
-        char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check)
+        base = True
+        char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check, isDutch)
         if char == '-' and (res == "" or res.endswith('-')): continue
-        tdist += dist
-        res += str(char)
+        if char == '1' and res.endswith('1'):
+            doubled_img = cv2.hconcat([last_char, char_img])
+            cut_char = cv2.threshold(cv2.resize(doubled_img, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+            scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
+            if isDutch:
+                for l in ['A','I']:
+                    scores.pop(l)
+            l, dist = sorted(scores.items(), key=lambda x: x[1])[0]
+            if dist < hyper_args.char_dist_threshold + 500:
+                tdist = tdist - 1500 + dist
+                res = res[:-1] + str(l)
+                base = False
+        if base:
+            last_char = char_img
+            tdist += dist
+            res += str(char)
     if res.endswith('-'):
         tdist -= 1000
         res = res[:-1]
     if quick_check: return 'T' if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else 'F'
-    else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
+    else: return res if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else ""
 
 def diff_score_xor(test, ref):
     res = 0
@@ -121,7 +137,7 @@ def diff_score_xor(test, ref):
         res += len(np.where(cv2.bitwise_xor(test, r) != 0)[0])
     return res / len(ref)
 
-def recognize_character(char, n, hyper_args, debug, quick_check):
+def recognize_character(char, n, hyper_args, debug, quick_check, isDutch):
     # Get all contours of segment
     cnts, _ = cv2.findContours(char, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     # If none - empty cut
@@ -143,14 +159,16 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
 
     # Resize and threshold char for standartization
     cut_char = cv2.threshold(cv2.resize(cut_char, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
-    # If predominantly vertical, consider as 1 or I
-    if max(w, h) / min(w, h) > hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'))
-    
     if debug:
         cv2.imshow("Character#%d" % n, cut_char)
-    #if len(np.where(char != 0)[0]) / (char.shape[0] * char.shape[1]) > 0.85: return ('-', 1000)
+
+    # If predominantly vertical, consider as 1 or I
+    if max(w, h) / min(w, h) >= hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'), isDutch)
 
     scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
+    if isDutch:
+        for l in ['A','I']:
+            scores.pop(l)
     # If quick-checking, don't bother for close characters, but only if it's a char at all
     if quick_check:
         # Get best
@@ -162,18 +180,19 @@ def recognize_character(char, n, hyper_args, debug, quick_check):
         low1, low2 = sorted(scores.items(), key=lambda x: x[1])[:2]
         # If false pair, perform extra check
         if (set([low1[0], low2[0]]) in [set(["8", "B"]), set(["0", "D"]), set(["5", "S"]), set(["2", "Z"])] and low2[1] / low1[1] < 1.1):
-            return extra_check(cut_char, (low1[0], low2[0]))
+            return extra_check(cut_char, (low1[0], low2[0]), isDutch)
         # If too distant to any character, consider as noise
         if low1[1] < hyper_args.char_dist_threshold: return low1
         return ('', 9999)
 
 # DO EXTRA CHECKS FOR CLOSE PAIRS ((8, B), (0, D), (5, S), and (2, Z))
-def extra_check(char, chars):
+def extra_check(char, chars, isDutch):
     if set(chars) == set(['1','I']):
         # Limit choice to 1 and I, pick lower distance diff
         number = ('1', diff_score_xor(char, reference_images['1']))
         letter = ('I', diff_score_xor(char, reference_images['I']))
-        return min(number, letter, key=lambda t: t[1])
+        if isDutch: return number
+        else: return min(number, letter, key=lambda t: t[1])
 
     # Get edged img of char and do hough transform on it
     edged = cv2.Canny(char, 50, 150)
