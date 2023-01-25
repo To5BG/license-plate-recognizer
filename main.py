@@ -12,7 +12,7 @@ def get_args():
     parser.add_argument('--output_path', type=str, default='./Output.csv')
     parser.add_argument('--sample_frequency', type=int, default=10)
     parser.add_argument('--save_files', type=bool, default=False)
-    parser.add_argument('--stage', type=str, default='train_test_localization')
+    parser.add_argument('--stage', type=str, default='test')
     args = parser.parse_args()
     return args
 
