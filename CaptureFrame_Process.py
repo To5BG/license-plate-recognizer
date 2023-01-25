@@ -47,9 +47,9 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     while (vid.isOpened()):
         # Capture frame-by-frame based on sampling frequency
         succ, frame = vid.read()
-        if not succ or frame_count == 1542:
+        if not succ:
             break
-        if frame_count > 1080 and frame_count % rate.numerator < rate.denominator:
+        if frame_count % rate.numerator < rate.denominator:
             if saveFiles:
                 cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
             # Localize and recognize plates
