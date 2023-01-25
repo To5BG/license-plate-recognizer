@@ -22,23 +22,23 @@ def get_localization_hyper_args():
             for v in range(225, 235):
                 high_mask_permutations.append([[h, s, v]])
     args["contrast_stretch"] = [0.0]
-    args["gaussian_blur_k"] = [7]
-    args["gaussian_blur_sigma"] = [1]
-    args["bifilter_k"] = [11]
+    args["gaussian_blur_k"] = [9]
+    args["gaussian_blur_sigma"] = [1.5]
+    args["bifilter_k"] = [7]
     args["bifilter_sigma1"] = [9]
-    args["bifilter_sigma2"] = [15]
-    args["sharpen_k"] = [11]
+    args["bifilter_sigma2"] = [11]
+    args["sharpen_k"] = [7, 9]
     args["sharpen_sigma"] = [1.25]
     args["mask_low"] = [[[12, 120, 110], [10, 80, 80]]]#low_mask_permutations
     args["mask_high"] = [[[32, 255, 255], [32, 255, 255]]]#high_mask_permutations
     args["opening_kernel"] = [(1, 2)]
-    args["canny_lower"] = [75]
+    args["canny_lower"] = [50]
     args["canny_upper"] = [245]
     args["image_dim"] = [(150, 50)]
     args["memoize_bounding_boxes"] = [True]
     args["contour_ratio_epsilon"] = [1.15]
     args["contour_approximation_epsilon"] = [0.035]
-    args["contour_perimeter"] = [175]
+    args["contour_perimeter"] = [150]
     args["center_offset_lookup"] = [(100, 30)]
     return args
 

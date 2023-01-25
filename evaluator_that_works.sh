@@ -1,5 +1,5 @@
 #!/bin/bash
-#this is only for running inside of VSCode and PyCharm
+
 T=$(find . -type f -name "*test*" \( -not -path "*git*" \) -and \( -not -path "*venv*" \) -and \( -not -path "*test_cross_validation*" \))
 
 python3 main.py --file_path $T --output_path ./Output.csv
