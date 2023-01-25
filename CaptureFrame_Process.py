@@ -3,9 +3,9 @@ import os
 import pandas as pd
 import Localization
 import Recognize
+from fractions import Fraction
 
-i = 1
-lastGuess = None
+lastGuess = ['', '']
 
 """
 In this file, you will define your own CaptureFrame_Process funtion. In this function,
@@ -20,8 +20,6 @@ Inputs:(three)
 	3. save_path: final .csv file path
 Output: None
 """
-
-
 def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, localization_hyper_args,
                          recognition_hyper_args):
     vid = cv2.VideoCapture(file_path)
@@ -40,8 +38,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     fps = vid.get(cv2.CAP_PROP_FPS)
     total = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     progress_bar_rate = total // 100
-    rate = fps // sample_frequency
-    data = {}
+    rate = Fraction(str(fps / min(max(0, sample_frequency), fps)))
+    data = []
     cache = [{}, {}]
     last_frame = None
     fc = 0
@@ -49,9 +47,9 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     while (vid.isOpened()):
         # Capture frame-by-frame based on sampling frequency
         succ, frame = vid.read()
-        if not succ:
+        if not succ or frame_count == 1542:
             break
-        if frame_count % rate == 0:
+        if frame_count > 1080 and frame_count % rate.numerator < rate.denominator:
             if saveFiles:
                 cv2.imwrite(os.path.join(cwd, "images", "frame%d.jpg" % frame_count), frame)
             # Localize and recognize plates
@@ -65,11 +63,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     		# Hence a separate implementation was deemed unecessary
     		# https://docs.opencv.org/4.x/df/dfb/group__imgproc__object.html#ga586ebfb0a7fb604b35a23d85391329be
             if last_frame is None or cv2.matchTemplate(last_frame, frame, 1) > 0.2:
-                pic = last_frame
                 last_frame = frame
-
-                cache, data = majorityVote(cache, pic, data, frame, fc, fps, cwd)  # resets or continues with cache
-
+                cache, data = majorityVote(cache, data, fc, fps)  # resets or continues with cache
                 fc = frame_count  # next frame which to put in csv
             for i, plate_num in enumerate(plate_nums):
                 if plate_num != '':
@@ -80,12 +75,9 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     # Finalize progress bar
     updateProgressBar(frame_count, total)
     # Add last entry
-    for c in cache:
-        maj = max(c, key=c.get, default=None)
-        if maj is not None and maj not in data.keys():
-            data[maj] = (maj, fc, round(fc / fps, 5))
+    cache, data = majorityVote(cache, data, fc, fps)
     # Save csv
-    pd.DataFrame(list(data.values()), columns=['License plate', 'Frame no.', 'Timestamp(seconds)']).to_csv(save_path,
+    pd.DataFrame(list(data), columns=['License plate', 'Frame no.', 'Timestamp(seconds)']).to_csv(save_path,
                                                                                                            index=False)
     # When everything done, release the video capture object
     vid.release()
@@ -93,35 +85,22 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path, saveFiles, loca
     cv2.destroyAllWindows()
 
 
-def majorityVote(cache, pic, data, frame, fc, fps, cwd):
-    global i, lastGuess
+def majorityVote(cache, data, frame, fps):
+    global lastGuess
     totalVotes = sum([val for d in cache for val in d.values()])
-
-    for c in cache:
-
+    if totalVotes <= 12: return cache, data
+    for i, c in enumerate(cache):
         maj = max(c, key=c.get, default=None)
-
+        if maj is None: return [{}, {}], data
         # if there is any guess take the most common one and put it in the data for the output.csv file
-
-        if (lastGuess is not None and maj is not None):
-            l_distance = levenshtein_distance(maj, lastGuess)
-
-            # print(l_distance)
-            # print(maj)
-            # print(lastGuess)
-            # print(cv2.matchTemplate(pic, frame, 1))
-            if l_distance <= 2 and l_distance > 0 or totalVotes <= 12:
+        if lastGuess[i] != '':
+            l_distance = levenshtein_distance(maj, lastGuess[i])
+            if l_distance <= 2:
+                cache[i] = {}
                 return cache, data
-        if maj is not None and maj not in data.keys():
-            print("---------------")
-            print(totalVotes)
-            print(str(i) + "_" + maj + " _" + str(fc) + ".jpg", "\n-------------")
-            cv2.imwrite(os.path.join(cwd, "debug", str(i) + "_" + maj + "_" + str(fc) + ".jpg"), pic)
-            i += 1
-            data[maj] = (maj, fc, round(fc / fps, 5))
-            lastGuess = maj
-
-
+        if maj != lastGuess[i]:
+            data.append((maj, frame, round(frame / fps, 5)))
+            lastGuess[i] = maj
     return [{}, {}], data
 
 
@@ -130,13 +109,11 @@ def levenshtein_distance(plate1, plate2):
     m = len(plate1)
     n = len(plate2)
     distance = [[0 for _ in range(n + 1)] for _ in range(m + 1)]
-
     # Fill in the first row and column of the matrix
     for i in range(m + 1):
         distance[i][0] = i
     for j in range(n + 1):
         distance[0][j] = j
-
     # Iterate over the matrix, computing the distance values
     for i in range(1, m + 1):
         for j in range(1, n + 1):
@@ -146,10 +123,8 @@ def levenshtein_distance(plate1, plate2):
             else:
                 # Otherwise, the distance is the minimum of the three possible operations (insertion, deletion, substitution)
                 distance[i][j] = min(distance[i - 1][j], distance[i][j - 1], distance[i - 1][j - 1]) + 1
-
     # The distance between the two strings is the value in the bottom-right corner of the matrix
     return distance[m][n]
-
 
 def updateProgressBar(curr, total):
     percent = ("{0:.1f}").format(100 * (curr / float(total)))
