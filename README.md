@@ -24,4 +24,4 @@ An optional step for evaluating the accuracy of the model. We accumulate a cache
 
 ## How to run
 
-Simply run the provided `evaluator.sh` script, which finds a video to be tested, outputs a csv file containing all final predictions, and are evaluated over the `evaluation.py` script. The `evaluator_that_works.sh` is just a slightly modified version of the original evaluator that excludes some results for the test video find operation, specifically the git, cache, venv, and pytest folders and files. 
+Simply run the provided `evaluator.sh` script, which finds a video to be tested, outputs a CSV file containing all final predictions, and are evaluated over the `evaluation.py` script. The `evaluator_that_works.sh` is just a slightly modified version of the original evaluator that excludes some results for the test video find operation, specifically the git, cache, venv, and pytest folders and files. If the evaluator scripts do not work, then delete files or restructure the project such that the find operation finds only a single match in the project directory tree. The regex that is used for the default (`'*test*'`).
