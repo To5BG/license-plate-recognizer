@@ -103,16 +103,32 @@ def recognize_plate(image, n, hyper_args, debug, quick_check, isDutch):
     res = ""
     if len(characterImages) == 0: return 'F' if quick_check else res
     tdist = 0
+    last_char = None
     for i, char_img in enumerate(characterImages):
+        base = True
         char, dist = recognize_character(char_img, i, hyper_args, debug, quick_check, isDutch)
         if char == '-' and (res == "" or res.endswith('-')): continue
-        tdist += dist
-        res += str(char)
+        if char == '1' and res.endswith('1'):
+            doubled_img = cv2.hconcat([last_char, char_img])
+            cut_char = cv2.threshold(cv2.resize(doubled_img, (64, 80)), 128, 255, cv2.THRESH_BINARY)[1]
+            scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
+            if isDutch:
+                for l in ['A','I']:
+                    scores.pop(l)
+            l, dist = sorted(scores.items(), key=lambda x: x[1])[0]
+            if dist < hyper_args.char_dist_threshold + 500:
+                tdist = tdist - 1500 + dist
+                res = res[:-1] + str(l)
+                base = False
+        if base:
+            last_char = char_img
+            tdist += dist
+            res += str(char)
     if res.endswith('-'):
         tdist -= 1000
         res = res[:-1]
     if quick_check: return 'T' if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else 'F'
-    else: return res if len(res) > 4 and tdist < hyper_args.plate_dist_threshold else ""
+    else: return res if len(res.replace('-','')) >= 5 and tdist < hyper_args.plate_dist_threshold else ""
 
 def diff_score_xor(test, ref):
     res = 0
@@ -147,12 +163,12 @@ def recognize_character(char, n, hyper_args, debug, quick_check, isDutch):
         cv2.imshow("Character#%d" % n, cut_char)
 
     # If predominantly vertical, consider as 1 or I
-    if max(w, h) / min(w, h) > hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'), isDutch)
+    if max(w, h) / min(w, h) >= hyper_args.vertical_ratio and not quick_check: return extra_check(cut_char, ('1','I'), isDutch)
 
     scores = {k : diff_score_xor(cut_char, ref) for k, ref in reference_images.items()}
-    if not quick_check:
-        scores.pop('1')
-        scores.pop('I')
+    if isDutch:
+        for l in ['A','I']:
+            scores.pop(l)
     # If quick-checking, don't bother for close characters, but only if it's a char at all
     if quick_check:
         # Get best

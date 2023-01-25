@@ -179,6 +179,8 @@ def plate_detection(image, hyper_args, quick_rec_hyper_args, debug=False):
             last_boxes = boxes
             last_plate_imgs = plate_imgs
 
+    indices = np.argsort([b[0][0] for b in boxes])
+    plate_imgs = list([plate_imgs[i] for i in indices])
     isDutch = desired_color_range == ((hyper_args.mask_low[0], hyper_args.mask_high[0])
         or desired_color_range == (hyper_args.mask_low[1], hyper_args.mask_high[1]))
     return plate_imgs, boxes, isDutch
